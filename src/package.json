@@ -1,0 +1,9 @@
+{
+  "name": "shin-kaya-2",
+  "version": "0.2.0",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rooklift/shin-kaya-2"
+  }
+}

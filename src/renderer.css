@@ -1,0 +1,106 @@
+body {
+	background-color: #ccccccff;
+	color: #000000ff;
+	font-family: monospace, monospace;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	user-select: none;
+}
+
+::-webkit-scrollbar {
+	pointer-events: auto;
+	background-color: #bbbbbbff;
+}
+
+::-webkit-scrollbar-thumb {
+	pointer-events: auto;
+	background-color: #ddddddff;
+}
+
+#gridder {
+	display: grid;
+	height: 100vh;
+	grid-template-columns: 1fr;
+	grid-template-rows: min-content 1fr;
+	grid-template-areas:
+		"search_preview"
+		"gamesbox";
+}
+
+#search_preview {
+	grid-area: search_preview;
+	display: grid;
+	grid-template-columns: min-content 1fr;
+	grid-template-rows: 1fr;
+	grid-template-areas:
+		"searchdiv previewdiv";
+}
+
+#searchdiv {
+	grid-area: searchdiv;
+	margin: 1em;
+	white-space: pre;
+}
+
+#previewdiv {
+	grid-area: previewdiv;
+	display: grid;
+	grid-template-columns: 1fr;
+	grid-template-rows: min-content 1fr;
+	grid-template-areas:
+		"preview"
+		"path";
+}
+
+#preview {
+	grid-area: preview;
+	margin: 1em;
+	justify-self: right;
+}
+
+#path {
+	grid-area: path;
+	margin: 0 1em 0 0;
+	white-space: nowrap;
+	overflow: hidden;		/* Somehow this allows the path to enter the margin of the search div on the left, which is good. I hate CSS. */
+	justify-self: right;
+}
+
+#gamesbox {
+	grid-area: gamesbox;
+	margin: 1em;
+	background-color: #f0f0f0ff;
+	white-space: pre;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+input {
+	background-color: #f0f0f0ff;
+	border: none;
+	caret-color: black;
+	color: #000000ff;
+	font-size: 100%;
+	font-family: monospace, monospace;
+	width: 40em;
+	margin-bottom: 4px;
+	pointer-events: auto;
+	user-select: auto;
+}
+
+input:focus {
+	border: none;
+	background-color: #ffffffff;
+	outline: none;
+}
+
+.highlightedgame {
+	background-color: #ffffffff;
+}
+
+.bold {
+	font-weight: bold;
+}
