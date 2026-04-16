@@ -25,9 +25,6 @@ exports.new_db = function() {
 		}
 		in_flight = queue.shift();
 		exe.stdin.write(in_flight.cmd + "\n");
-		if (queue.length > 50) {
-			document.getElementById("status").innerHTML = `DB queue: ${queue.length}`;
-		}
 	}
 
 	function finish(result) {
