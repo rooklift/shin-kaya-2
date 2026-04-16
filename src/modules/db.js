@@ -78,7 +78,7 @@ async function continue_deletions(database, missing_files, new_files_total) {
 
 	for (let relpath of missing_files) {
 		ensure_update_can_continue(database, "continue_deletions()");
-		batch_promises.push(database(`delete ${JSON.stringify({relpath: relpath})}`));
+		batch_promises.push(database(`deleteone ${JSON.stringify({relpath: relpath})}`));
 
 		if (batch_promises.length >= DELETION_BATCH_SIZE) {
 			await Promise.all(batch_promises);
@@ -171,7 +171,7 @@ exports.connect = function() {
 
 	current_db(`expect ["relpath", "dyer", "movecount", "SZ", "HA", "PB", "PW", "BR", "WR", "RE", "DT", "EV", "RO"]`);
 	current_db(`load ${filepath}`);
-
+	current_db(`sort "relpath"`);
 };
 
 exports.update = function() {

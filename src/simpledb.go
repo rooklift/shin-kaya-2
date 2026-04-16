@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"os"
 	filepathpkg "path/filepath"
+	"sort"
 	"strings"
 )
 
 var (
-	records  []map[string]string
-	fields   []string
-	filepath string
-	loaded   bool
+	records    []map[string]string
+	fields     []string
+	filepath   string
+	loaded     bool
+	sortField  string
+	deleteHint int
 )
 
 func main() {
@@ -63,8 +66,12 @@ func handleCommand(line string) {
 		cmdCount()
 	} else if line == "clear" {
 		cmdClear()
+	} else if strings.HasPrefix(line, "sort ") {
+		cmdSort(strings.TrimSpace(line[5:]))
 	} else if strings.HasPrefix(line, "select ") {
 		cmdSelect(line[7:])
+	} else if strings.HasPrefix(line, "deleteone ") {
+		cmdDeleteOne(line[10:])
 	} else if strings.HasPrefix(line, "delete ") {
 		cmdDelete(line[7:])
 	} else {
@@ -104,6 +111,8 @@ func cmdLoad(path string) {
 			filepath = path
 			records = nil
 			loaded = true
+			sortField = ""
+			deleteHint = 0
 			respondOK(map[string]interface{}{"count": 0})
 			return
 		}
@@ -139,6 +148,8 @@ func cmdLoad(path string) {
 	filepath = path
 	records = temp
 	loaded = true
+	sortField = ""
+	deleteHint = 0
 	respondOK(map[string]interface{}{"count": len(records)})
 }
 
@@ -236,7 +247,17 @@ func cmdAdd(payload string) {
 		return
 	}
 
-	records = append(records, rec)
+	if sortField != "" {
+		val := strings.ToLower(rec[sortField])
+		i := sort.Search(len(records), func(i int) bool {
+			return strings.ToLower(records[i][sortField]) >= val
+		})
+		records = append(records, nil)
+		copy(records[i+1:], records[i:])
+		records[i] = rec
+	} else {
+		records = append(records, rec)
+	}
 	respondOK(nil)
 }
 
@@ -365,7 +386,84 @@ func cmdClear() {
 		return
 	}
 	records = nil
+	deleteHint = 0
 	respondOK(nil)
+}
+
+func cmdSort(field string) {
+	if !loaded {
+		respondError("no file loaded")
+		return
+	}
+
+	// Strip quotes if present
+	if len(field) >= 2 && field[0] == '"' && field[len(field)-1] == '"' {
+		field = field[1 : len(field)-1]
+	}
+
+	// Verify field exists in schema
+	found := false
+	for _, f := range fields {
+		if f == field {
+			found = true
+			break
+		}
+	}
+	if !found {
+		respondError(fmt.Sprintf("unknown field: %s", field))
+		return
+	}
+
+	sortField = field
+	deleteHint = 0
+
+	sort.SliceStable(records, func(i, j int) bool {
+		return strings.ToLower(records[i][sortField]) < strings.ToLower(records[j][sortField])
+	})
+
+	respondOK(nil)
+}
+
+func cmdDeleteOne(payload string) {
+	if !loaded {
+		respondError("no file loaded")
+		return
+	}
+
+	pf, errMsg := parseFilter(payload)
+	if errMsg != "" {
+		respondError(errMsg)
+		return
+	}
+
+	n := len(records)
+	if n == 0 {
+		respondOK(map[string]interface{}{"count": 0})
+		return
+	}
+
+	// Search forward from hint, then wrap around
+	if deleteHint >= n {
+		deleteHint = 0
+	}
+
+	idx := -1
+	for i := 0; i < n; i++ {
+		j := (deleteHint + i) % n
+		if matchRecord(records[j], pf) {
+			idx = j
+			break
+		}
+	}
+
+	if idx < 0 {
+		respondOK(map[string]interface{}{"count": 0})
+		return
+	}
+
+	records = append(records[:idx], records[idx+1:]...)
+	deleteHint = idx
+	respondOK(map[string]interface{}{"count": 1})
 }
 
 func cmdSelect(payload string) {
@@ -416,6 +514,7 @@ func cmdDelete(payload string) {
 		}
 	}
 	records = kept
+	deleteHint = 0
 
 	respondOK(map[string]interface{}{"count": count})
 }

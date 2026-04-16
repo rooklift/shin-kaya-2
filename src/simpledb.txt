@@ -46,6 +46,8 @@ save
 
 add <json_record>
     Adds a new record. Must contain exactly the expected fields.
+    If a sort is active, the record is inserted in sorted position;
+    otherwise it is appended.
 
     Example:  add {"name":"Alice","city":"London","age":"30"}
     Response: {"ok":true}
@@ -89,8 +91,49 @@ delete <json_filter>
     Example:  delete {"name":"John Smith"}
     Response: {"ok":true,"count":1}
 
+sort <field>
+    Sorts all records by the given field (case-insensitive). From
+    this point on, records remain sorted: add inserts in sorted
+    position via binary search rather than appending.
+
+    A new sort replaces the previous one. Load resets the sort.
+
+    Example:  sort "relpath"
+    Response: {"ok":true}
+
+deleteone <json_filter>
+    Deletes the first matching record and returns. Matching works
+    the same as select and delete, including pair matching.
+
+    Internally, the search starts at the index of the last deleteone
+    hit, wrapping around if needed. This means that if records are
+    sorted and deletions arrive in sorted order, each deleteone is
+    nearly instant since the search picks up right where it left off.
+
+    Example:  deleteone {"relpath":"games/abc.sgf"}
+    Response: {"ok":true,"count":1}
+
+    If no match is found:
+    Response: {"ok":true,"count":0}
+
 quit
     Exits the program immediately. Does not auto-save.
+
+
+Sorting and Batch Deletion
+--------------------------
+
+For best performance when deleting many records, sort first, then
+send deleteone commands in the same sorted order:
+
+    sort "relpath"
+    deleteone {"relpath":"aaa/file1.sgf"}
+    deleteone {"relpath":"aaa/file2.sgf"}
+    deleteone {"relpath":"bbb/file3.sgf"}
+    ...
+    save
+
+This makes the entire batch roughly O(n) rather than O(n*m).
 
 
 Pair Matching
