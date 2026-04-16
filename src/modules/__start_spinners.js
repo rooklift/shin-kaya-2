@@ -7,15 +7,10 @@
 (function window_resize_spinner() {
 
 	if (!config.maxed) {
-
-		if (config.width !== window.innerWidth || config.height !== window.innerHeight) {
-
-			config.width = window.innerWidth;
-			config.height = window.innerHeight;
-			
-		}
+		config.width = window.innerWidth;
+		config.height = window.innerHeight;
 	}
 
 	setTimeout(window_resize_spinner, 127);
-	
+
 })();
