@@ -40,7 +40,7 @@ exports.connect = function() {
 	}
 
 	current_db = bridge.new_db();
-	let filepath = slashpath.join(config.sgfdir, ".shin-kaya.db");
+	let filepath = slashpath.join(config.sgfdir, ".shin-kaya-2.jsonl");
 
 	current_db(`expect ["relpath", "dyer", "movecount", "SZ", "HA", "PB", "PW", "BR", "WR", "RE", "DT", "EV", "RO"]`);
 	current_db(`load ${filepath}`);
@@ -120,9 +120,11 @@ exports.update = function() {
 	})
 
 	.then(() => {
-
 		return {additions: new_files.length, deletions: missing_files.length, new_records: new_records}
+	})
 
+	.finally(() => {
+		work_in_progress = false;
 	});
 
 };

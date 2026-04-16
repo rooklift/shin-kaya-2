@@ -32,7 +32,6 @@ function init() {
 let hub_main_props = {
 
 	quit: function() {
-		db.stop_update();
 		config_io.save();					// As long as we use the sync save, this will complete before we
 		ipcRenderer.send("terminate");		// send "terminate". Not sure about results if that wasn't so.
 	},
@@ -66,10 +65,6 @@ let hub_main_props = {
 		});
 	},
 
-	stop_update: function() {
-		// db.stop_update();		// FIXME maybe
-	},
-
 	unable: function() {
 		if (db.wip()) {
 			alert("Unable. Work is in progress.");
@@ -84,7 +79,7 @@ let hub_main_props = {
 
 	reset_db: function() {
 		if (!this.unable()) {
-			db.drop_table();
+			db.current()("clear");
 			this.display_row_count();
 		}
 	},
@@ -97,6 +92,7 @@ let hub_main_props = {
 		}
 	},
 
+/*
 	get_iterator_from_fields: function() {
 
 		if (!db.current()) {
@@ -147,6 +143,10 @@ let hub_main_props = {
 		this.handle_records(records, truncated);
 	},
 
+*/
+
+
+
 	handle_records: function(records, truncated = false) {
 
 		if (records.length > 9999) {
@@ -190,15 +190,27 @@ let hub_main_props = {
 	},
 
 	search: function() {
-		if (!this.unable()) {
-			this.handle_iterator(this.get_iterator_from_fields());
+		if (this.unable()) {
+			return;
 		}
-	},
 
-	raw: function(s) {				// For debugging, executes a raw SQL statement. Use "SELECT * FROM Games WHERE ... "
-		if (!this.unable()) {
-			this.handle_iterator(db.current().prepare(s).iterate());
+		let binding = {
+			relpath:	document.getElementById("relpath").value.trim(),
+			dyer:		document.getElementById("dyer").value.trim(),
+			PB:			document.getElementById("P1").value.trim(),
+			PW:			document.getElementById("P2").value.trim(),
+			DT:			document.getElementById("DT").value.trim(),
+			EV:			document.getElementById("EV").value.trim(),
+			RO:			document.getElementById("RO").value.trim(),
+		};
+
+		for (let key of Object.keys(binding)) {
+			if (binding[key] === "") {
+				delete binding[key];
+			}
 		}
+
+		db.current()(`select ${JSON.stringify(binding)}`).then(records => this.handle_records(records));
 	},
 
 	set_preview_from_path: function(new_preview_path) {

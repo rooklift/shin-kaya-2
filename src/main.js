@@ -216,12 +216,6 @@ function menu_build() {
 					}
 				},
 				{
-					label: "Stop update",
-					click: () => {
-						win.webContents.send("call", "stop_update");
-					}
-				},
-				{
 					type: "separator",
 				},
 				{
