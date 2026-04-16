@@ -8,8 +8,8 @@ const slashpath = require("./slashpath");
 const { list_all_files } = require("./walk_promises");
 const { create_record_from_path } = require("./records");
 
-const DELETION_BATCH_SIZE = 5;
-const ADDITION_BATCH_SIZE = 47;
+const DELETION_BATCH_SIZE = 50;
+const ADDITION_BATCH_SIZE = 50;
 const YIELD_AFTER_MS = 25;
 const RESUME_DELAY_MS = 5;
 
