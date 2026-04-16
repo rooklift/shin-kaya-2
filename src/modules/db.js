@@ -10,10 +10,137 @@ const { create_record_from_path } = require("./records");
 
 const DELETION_BATCH_SIZE = 5;
 const ADDITION_BATCH_SIZE = 47;
+const YIELD_AFTER_MS = 25;
+const RESUME_DELAY_MS = 5;
 
 let current_db = null;
 let work_in_progress = false;
-let abort_flag = false;										// FIXME - check what uses this.
+let abort_flag = false;
+
+function update_status(msg) {
+
+	if (typeof document === "undefined") {
+		return;
+	}
+
+	let el = document.getElementById("status");
+	if (el) {
+		el.innerHTML = msg;
+	}
+}
+
+function update_import_status(deletions_done, deletions_total, additions_done, additions_total, phase) {
+	update_status(
+		`Updating database (${phase}) - deletions: ${deletions_done}/${deletions_total}, additions: ${additions_done}/${additions_total}`
+	);
+}
+
+function delay(ms) {
+	return new Promise(resolve => {
+		setTimeout(resolve, ms);
+	});
+}
+
+function ensure_update_can_continue(database, where) {
+
+	if (database !== current_db) {
+		throw new Error(`${where}: database changed unexpectedly`);
+	}
+
+	if (abort_flag) {
+		throw new Error(`${where}: aborted by user`);
+	}
+}
+
+async function maybe_yield(database, started_at, where) {
+
+	ensure_update_can_continue(database, where);
+
+	if (Date.now() - started_at < YIELD_AFTER_MS) {
+		return started_at;
+	}
+
+	await delay(RESUME_DELAY_MS);
+	ensure_update_can_continue(database, where);
+
+	return Date.now();
+}
+
+async function continue_deletions(database, missing_files, new_files_total) {
+
+	let batch_promises = [];
+	let started_at = Date.now();
+	let deletions_done = 0;
+
+	if (missing_files.length > 0) {
+		update_import_status(0, missing_files.length, 0, new_files_total, "deleting");
+	}
+
+	for (let relpath of missing_files) {
+		ensure_update_can_continue(database, "continue_deletions()");
+		batch_promises.push(database(`delete {"relpath": "${relpath}"}`));
+
+		if (batch_promises.length >= DELETION_BATCH_SIZE) {
+			await Promise.all(batch_promises);
+			deletions_done += batch_promises.length;
+			update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
+			batch_promises = [];
+			started_at = await maybe_yield(database, started_at, "continue_deletions()");
+		}
+	}
+
+	if (batch_promises.length > 0) {
+		await Promise.all(batch_promises);
+		deletions_done += batch_promises.length;
+		update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
+	}
+}
+
+async function continue_additions(database, archivepath, missing_files_total, new_files, new_records) {
+
+	let batch_promises = [];
+	let started_at = Date.now();
+	let additions_done = 0;
+
+	if (new_files.length > 0) {
+		update_import_status(missing_files_total, missing_files_total, 0, new_files.length, "adding");
+	}
+
+	for (let relpath of new_files) {
+		ensure_update_can_continue(database, "continue_additions()");
+
+		let record = create_record_from_path(archivepath, relpath);
+		batch_promises.push(database(`add ${JSON.stringify(record)}`));
+		new_records.push(record);
+
+		if (batch_promises.length >= ADDITION_BATCH_SIZE || Date.now() - started_at >= YIELD_AFTER_MS) {
+			await Promise.all(batch_promises);
+			additions_done += batch_promises.length;
+			update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
+			batch_promises = [];
+			started_at = await maybe_yield(database, started_at, "continue_additions()");
+		}
+	}
+
+	if (batch_promises.length > 0) {
+		await Promise.all(batch_promises);
+		additions_done += batch_promises.length;
+		update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
+	}
+}
+
+async function continue_update(database, archivepath, missing_files, new_files, new_records) {
+
+	ensure_update_can_continue(database, "continue_update()");
+
+	await continue_deletions(database, missing_files, new_files.length);
+	await continue_additions(database, archivepath, missing_files.length, new_files, new_records);
+
+	if (missing_files.length > 0 || new_files.length > 0) {
+		update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length, "saving");
+		await database("save");
+	}
+}
 
 exports.current = function() {
 	return current_db;
@@ -58,7 +185,10 @@ exports.update = function() {
 	}
 
 	work_in_progress = true;
+	abort_flag = false;
 
+	let database = current_db;
+	let archivepath = config.sgfdir;
 	let missing_files = [];
 	let new_files = [];
 	let new_records = [];
@@ -66,8 +196,8 @@ exports.update = function() {
 	return Promise.all
 	(
 		[
-			list_all_files(config.sgfdir, ""),
-			current_db("select {}"),
+			list_all_files(archivepath, ""),
+			database("select {}"),
 		]
 	)
 
@@ -99,23 +229,8 @@ exports.update = function() {
 			}
 		}
 
-		let all_promises = [];
-
-		for (let relpath of missing_files) {
-			all_promises.push(current_db(`delete {"relpath": "${relpath}"}`));
-		}
-
-		for (let relpath of new_files) {
-			let record = create_record_from_path(config.sgfdir, relpath);
-			all_promises.push(current_db(`add ${JSON.stringify(record)}`));
-			new_records.push(record);
-		}
-
-		if (all_promises.length > 0) {
-			all_promises.push(current_db(`save`));
-		}
-
-		return Promise.all(all_promises);
+		update_import_status(0, missing_files.length, 0, new_files.length, "starting");
+		return continue_update(database, archivepath, missing_files, new_files, new_records);
 
 	})
 
@@ -125,6 +240,13 @@ exports.update = function() {
 
 	.finally(() => {
 		work_in_progress = false;
+		abort_flag = false;
 	});
 
+};
+
+exports.stop_update = function() {
+	if (work_in_progress) {
+		abort_flag = true;
+	}
 };
