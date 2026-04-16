@@ -65,6 +65,10 @@ let hub_main_props = {
 		});
 	},
 
+	stop_update: function() {
+		db.stop_update();
+	},
+
 	unable: function() {
 		if (db.wip()) {
 			alert("Unable. Work is in progress.");
@@ -92,61 +96,6 @@ let hub_main_props = {
 			});
 		}
 	},
-
-/*
-	get_iterator_from_fields: function() {
-
-		if (!db.current()) {
-			return [];
-		}
-
-		let binding = {
-			relpath:  "%" + document.getElementById("relpath").value.trim() + "%",
-			dyer:     "%" + document.getElementById("dyer").value.trim() + "%",
-			P1:       "%" + document.getElementById("P1").value.trim() + "%",
-			P2:       "%" + document.getElementById("P2").value.trim() + "%",
-			DT:       "%" + document.getElementById("DT").value.trim() + "%",
-			EV:       "%" + document.getElementById("EV").value.trim() + "%",
-			RO:       "%" + document.getElementById("RO").value.trim() + "%",
-		};
-
-		let st = db.current().prepare(`
-			SELECT * FROM Games WHERE
-				(relpath like @relpath)
-					and
-				(dyer like @dyer)
-					and
-				((PB like @P1 and PW like @P2) or (PB like @P2 and PW like @P1))
-					and
-				(DT like @DT)
-					and
-				(EV like @EV)
-					and
-				(RO like @RO)
-		`);
-
-		return st.iterate(binding);
-	},
-
-	handle_iterator: function(iterator) {
-
-		let records = [];
-		let truncated = false;
-
-		for (let o of iterator) {
-			records.push(o);
-			if (records.length >= 9999) {
-				truncated = true;
-				break;
-			}
-		}
-
-		this.handle_records(records, truncated);
-	},
-
-*/
-
-
 
 	handle_records: function(records, truncated = false) {
 
@@ -195,15 +144,28 @@ let hub_main_props = {
 			return;
 		}
 
+		let P1 = document.getElementById("P1").value.trim();
+		let P2 = document.getElementById("P2").value.trim();
+
+		let pair = null;
+
+		if (P1 && P2) {
+			pair = [["PB", "PW"], [P1, P2]]
+		} else if (P1 || P2) {
+			pair = [["PB", "PW"], [P1 || P2]]
+		}
+
 		let binding = {
 			relpath:	document.getElementById("relpath").value.trim(),
 			dyer:		document.getElementById("dyer").value.trim(),
-			PB:			document.getElementById("P1").value.trim(),
-			PW:			document.getElementById("P2").value.trim(),
 			DT:			document.getElementById("DT").value.trim(),
 			EV:			document.getElementById("EV").value.trim(),
 			RO:			document.getElementById("RO").value.trim(),
 		};
+
+		if (pair) {
+			binding["__pair__"] = pair;
+		}
 
 		for (let key of Object.keys(binding)) {
 			if (binding[key] === "") {
