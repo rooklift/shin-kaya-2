@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	filepathpkg "path/filepath"
 	"strings"
 )
 
@@ -147,11 +148,20 @@ func cmdSave() {
 		return
 	}
 
-	f, err := os.Create(filepath)
+	dir := filepathpkg.Dir(filepath)
+
+	f, err := os.CreateTemp(dir, "simpledb-*.jsonl")
 	if err != nil {
-		respondError(fmt.Sprintf("cannot create file: %v", err))
+		respondError(fmt.Sprintf("cannot create temp file: %v", err))
 		return
 	}
+	tempPath := f.Name()
+	cleanupTemp := true
+	defer func() {
+		if cleanupTemp {
+			_ = os.Remove(tempPath)
+		}
+	}()
 
 	w := bufio.NewWriter(f)
 	var writeErr error
@@ -180,6 +190,30 @@ func cmdSave() {
 	if writeErr != nil {
 		respondError(fmt.Sprintf("write error: %v", writeErr))
 		return
+	}
+
+	backupPath := ""
+	if _, err := os.Stat(filepath); err == nil {
+		backupPath = tempPath + ".bak"
+		if err := os.Rename(filepath, backupPath); err != nil {
+			respondError(fmt.Sprintf("cannot stage old file: %v", err))
+			return
+		}
+	} else if !os.IsNotExist(err) {
+		respondError(fmt.Sprintf("cannot access file: %v", err))
+		return
+	}
+
+	if err := os.Rename(tempPath, filepath); err != nil {
+		if backupPath != "" {
+			_ = os.Rename(backupPath, filepath)
+		}
+		respondError(fmt.Sprintf("cannot replace file: %v", err))
+		return
+	}
+	cleanupTemp = false
+	if backupPath != "" {
+		_ = os.Remove(backupPath)
 	}
 
 	respondOK(nil)
