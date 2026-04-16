@@ -227,16 +227,83 @@ func validateRecord(rec map[string]string) string {
 	return ""
 }
 
-func matchRecord(rec map[string]string, filter map[string]string) bool {
-	for k, v := range filter {
+type parsedFilter struct {
+	fields     map[string]string
+	pairKeys   []string
+	pairValues []string
+}
+
+func parseFilter(payload string) (*parsedFilter, string) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(payload), &raw); err != nil {
+		return nil, fmt.Sprintf("bad json: %v", err)
+	}
+
+	pf := &parsedFilter{fields: make(map[string]string)}
+
+	for k, v := range raw {
+		if k == "__pair__" {
+			var pair [2][]string
+			if err := json.Unmarshal(v, &pair); err != nil {
+				return nil, fmt.Sprintf("bad __pair__: %v", err)
+			}
+			if len(pair[0]) != 2 {
+				return nil, "__pair__ must have exactly 2 field names"
+			}
+			pf.pairKeys = pair[0]
+			pf.pairValues = pair[1]
+			if len(pf.pairValues) > 2 {
+				return nil, "__pair__ must have 0, 1, or 2 values"
+			}
+			continue
+		}
+		var s string
+		if err := json.Unmarshal(v, &s); err != nil {
+			return nil, fmt.Sprintf("bad value for field %q: %v", k, err)
+		}
+		pf.fields[k] = s
+	}
+
+	return pf, ""
+}
+
+func likeMatch(haystack, needle string) bool {
+	return strings.Contains(strings.ToLower(haystack), strings.ToLower(needle))
+}
+
+func matchRecord(rec map[string]string, pf *parsedFilter) bool {
+	for k, v := range pf.fields {
 		rv, ok := rec[k]
 		if !ok {
 			return false
 		}
-		if !strings.Contains(strings.ToLower(rv), strings.ToLower(v)) {
+		if !likeMatch(rv, v) {
 			return false
 		}
 	}
+
+	if pf.pairKeys != nil && len(pf.pairValues) > 0 {
+		f0 := rec[pf.pairKeys[0]]
+		f1 := rec[pf.pairKeys[1]]
+
+		if len(pf.pairValues) == 1 {
+			// One value: match if either field contains it
+			v := pf.pairValues[0]
+			if !likeMatch(f0, v) && !likeMatch(f1, v) {
+				return false
+			}
+		} else {
+			// Two values: match either assignment
+			v0 := pf.pairValues[0]
+			v1 := pf.pairValues[1]
+			fwd := likeMatch(f0, v0) && likeMatch(f1, v1)
+			rev := likeMatch(f0, v1) && likeMatch(f1, v0)
+			if !fwd && !rev {
+				return false
+			}
+		}
+	}
+
 	return true
 }
 
@@ -263,15 +330,15 @@ func cmdSelect(payload string) {
 		return
 	}
 
-	var filter map[string]string
-	if err := json.Unmarshal([]byte(payload), &filter); err != nil {
-		respondError(fmt.Sprintf("bad json: %v", err))
+	pf, errMsg := parseFilter(payload)
+	if errMsg != "" {
+		respondError(errMsg)
 		return
 	}
 
 	var results []map[string]string
 	for _, rec := range records {
-		if matchRecord(rec, filter) {
+		if matchRecord(rec, pf) {
 			results = append(results, rec)
 		}
 	}
@@ -289,16 +356,16 @@ func cmdDelete(payload string) {
 		return
 	}
 
-	var filter map[string]string
-	if err := json.Unmarshal([]byte(payload), &filter); err != nil {
-		respondError(fmt.Sprintf("bad json: %v", err))
+	pf, errMsg := parseFilter(payload)
+	if errMsg != "" {
+		respondError(errMsg)
 		return
 	}
 
 	count := 0
 	kept := make([]map[string]string, 0, len(records))
 	for _, rec := range records {
-		if matchRecord(rec, filter) {
+		if matchRecord(rec, pf) {
 			count++
 		} else {
 			kept = append(kept, rec)
