@@ -47,8 +47,8 @@ func handleCommand(line string) {
 		return
 	}
 
-	if strings.HasPrefix(line, "create ") {
-		cmdCreate(strings.TrimSpace(line[7:]))
+	if strings.HasPrefix(line, "expect ") {
+		cmdExpect(line[7:])
 	} else if strings.HasPrefix(line, "load ") {
 		cmdLoad(strings.TrimSpace(line[5:]))
 	} else if line == "save" {
@@ -66,17 +66,14 @@ func handleCommand(line string) {
 	}
 }
 
-func cmdCreate(args string) {
-	// Expected format: /path/to/file.jsonl ["field1","field2",...]
-	idx := strings.Index(args, " [")
-	if idx < 0 {
-		respondError("usage: create <path> [\"field1\",\"field2\",...]")
+func cmdExpect(payload string) {
+	if fields != nil {
+		respondError("fields already set")
 		return
 	}
 
-	path := args[:idx]
 	var newFields []string
-	if err := json.Unmarshal([]byte(args[idx+1:]), &newFields); err != nil {
+	if err := json.Unmarshal([]byte(payload), &newFields); err != nil {
 		respondError(fmt.Sprintf("bad field list: %v", err))
 		return
 	}
@@ -85,38 +82,45 @@ func cmdCreate(args string) {
 		return
 	}
 
-	filepath = path
 	fields = newFields
-	records = nil
-
 	respondOK(nil)
 }
 
 func cmdLoad(path string) {
+	if fields == nil {
+		respondError("must call expect first")
+		return
+	}
+
+	records = nil
+	filepath = path
+
 	f, err := os.Open(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			respondOK(map[string]interface{}{"count": 0})
+			return
+		}
 		respondError(fmt.Sprintf("cannot open file: %v", err))
 		return
 	}
 	defer f.Close()
 
-	records = nil
-	fields = nil
-	filepath = path
-
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 
+	lineNum := 0
 	for scanner.Scan() {
+		lineNum++
 		var rec map[string]string
 		if err := json.Unmarshal(scanner.Bytes(), &rec); err != nil {
-			respondError(fmt.Sprintf("bad record: %v", err))
+			respondError(fmt.Sprintf("bad record on line %d: %v", lineNum, err))
 			return
 		}
-		if fields == nil {
-			fields = make([]string, 0, len(rec))
-			for k := range rec {
-				fields = append(fields, k)
+		for _, field := range fields {
+			if _, ok := rec[field]; !ok {
+				respondError(fmt.Sprintf("missing field %q on line %d", field, lineNum))
+				return
 			}
 		}
 		records = append(records, rec)
