@@ -1,0 +1,93 @@
+Simple JSONL Database
+=====================
+
+A schema-agnostic in-memory database that communicates via stdin/stdout.
+Records are stored as JSON Lines (one JSON object per line).
+All field values are strings.
+
+
+Startup Sequence
+----------------
+
+The first command must be "expect", which defines the schema.
+The second command should be "load", which loads an existing file
+or starts empty if the file doesn't exist yet.
+
+    expect ["name","city","age","path"]
+    load /path/to/data.jsonl
+
+
+Commands
+--------
+
+expect <field_list>
+    Must be the first command. Defines the expected fields as a JSON
+    array of strings. All subsequent add/load operations validate
+    against these fields.
+
+    Example:  expect ["name","city","age"]
+    Response: {"ok":true}
+
+load <filepath>
+    Loads records from a JSONL file. If the file does not exist, starts
+    with an empty record set (the file will be created on save). Each
+    record is validated against the expected fields.
+
+    Example:  load /home/user/data.jsonl
+    Response: {"ok":true,"count":250000}
+
+save
+    Writes all records back to the file specified in the load command.
+
+    Example:  save
+    Response: {"ok":true}
+
+add <json_record>
+    Adds a new record. All expected fields must be present.
+
+    Example:  add {"name":"Alice","city":"London","age":"30"}
+    Response: {"ok":true}
+
+select <json_filter>
+    Returns all records matching the filter. Each filter field is
+    matched as a case-insensitive substring (like SQL's %term%).
+    Multiple fields are combined with AND logic. An empty filter
+    matches all records.
+
+    The response is multi-line: a status line with the count, followed
+    by one line per matching record.
+
+    Example:  select {"name":"smith","city":"london"}
+    Response: {"ok":true,"count":2}
+              {"name":"John Smith","city":"London","age":"42"}
+              {"name":"Jane Smithson","city":"East London","age":"35"}
+
+    Example:  select {}
+    Response: (returns all records)
+
+delete <json_filter>
+    Deletes all records matching the filter. Matching works the same
+    as select. Returns the number of deleted records.
+
+    Example:  delete {"name":"John Smith"}
+    Response: {"ok":true,"count":1}
+
+quit
+    Exits the program immediately. Does not auto-save.
+
+
+Error Responses
+---------------
+
+Any command can return an error instead of a success response:
+
+    {"error":"missing field \"age\""}
+
+
+Notes
+-----
+
+- All matching is case-insensitive substring (contains).
+- Delete can remove multiple records if the filter matches broadly.
+- Save overwrites the file entirely each time.
+- There is no auto-save; call save explicitly after mutations.

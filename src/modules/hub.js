@@ -4,7 +4,7 @@ const { ipcRenderer, shell } = require("electron");
 const fs = require("fs/promises");
 
 const config_io = require("./config_io");
-const db = require("./db_promises");
+const db = require("./db");
 const new_node = require("./node");
 const set_thumbnail = require("./thumbnail");
 const load_sgf = require("./load_sgf");
@@ -90,8 +90,9 @@ let hub_main_props = {
 
 	display_row_count: function() {
 		if (!this.unable()) {
-			let st = db.current().prepare(`SELECT COUNT(*) FROM Games`);
-			let count = st.get()["COUNT(*)"];
+			//let st = db.current().prepare(`SELECT COUNT(*) FROM Games`);
+			//let count = st.get()["COUNT(*)"];
+			let count = 1234;
 			document.getElementById("status").innerHTML = `Database has ${count} entries - ${config.sgfdir}`;
 		}
 	},

@@ -12,6 +12,7 @@ var (
 	records  []map[string]string
 	fields   []string
 	filepath string
+	loaded   bool
 )
 
 func main() {
@@ -57,6 +58,8 @@ func handleCommand(line string) {
 		os.Exit(0)
 	} else if strings.HasPrefix(line, "add ") {
 		cmdAdd(line[4:])
+	} else if line == "count" {
+		cmdCount()
 	} else if strings.HasPrefix(line, "select ") {
 		cmdSelect(line[7:])
 	} else if strings.HasPrefix(line, "delete ") {
@@ -92,12 +95,12 @@ func cmdLoad(path string) {
 		return
 	}
 
-	records = nil
-	filepath = path
-
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			filepath = path
+			records = nil
+			loaded = true
 			respondOK(map[string]interface{}{"count": 0})
 			return
 		}
@@ -106,6 +109,7 @@ func cmdLoad(path string) {
 	}
 	defer f.Close()
 
+	var temp []map[string]string
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 
@@ -117,13 +121,11 @@ func cmdLoad(path string) {
 			respondError(fmt.Sprintf("bad record on line %d: %v", lineNum, err))
 			return
 		}
-		for _, field := range fields {
-			if _, ok := rec[field]; !ok {
-				respondError(fmt.Sprintf("missing field %q on line %d", field, lineNum))
-				return
-			}
+		if msg := validateRecord(rec); msg != "" {
+			respondError(fmt.Sprintf("%s on line %d", msg, lineNum))
+			return
 		}
-		records = append(records, rec)
+		temp = append(temp, rec)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -131,11 +133,14 @@ func cmdLoad(path string) {
 		return
 	}
 
+	filepath = path
+	records = temp
+	loaded = true
 	respondOK(map[string]interface{}{"count": len(records)})
 }
 
 func cmdSave() {
-	if filepath == "" {
+	if !loaded {
 		respondError("no file loaded")
 		return
 	}
@@ -145,21 +150,41 @@ func cmdSave() {
 		respondError(fmt.Sprintf("cannot create file: %v", err))
 		return
 	}
-	defer f.Close()
 
 	w := bufio.NewWriter(f)
+	var writeErr error
 	for _, rec := range records {
-		b, _ := json.Marshal(rec)
-		w.Write(b)
-		w.WriteByte('\n')
+		b, err := json.Marshal(rec)
+		if err != nil {
+			writeErr = err
+			break
+		}
+		if _, err := w.Write(b); err != nil {
+			writeErr = err
+			break
+		}
+		if err := w.WriteByte('\n'); err != nil {
+			writeErr = err
+			break
+		}
 	}
-	w.Flush()
+	if writeErr == nil {
+		writeErr = w.Flush()
+	}
+	if err := f.Close(); err != nil && writeErr == nil {
+		writeErr = err
+	}
+
+	if writeErr != nil {
+		respondError(fmt.Sprintf("write error: %v", writeErr))
+		return
+	}
 
 	respondOK(nil)
 }
 
 func cmdAdd(payload string) {
-	if fields == nil {
+	if !loaded {
 		respondError("no file loaded")
 		return
 	}
@@ -170,15 +195,34 @@ func cmdAdd(payload string) {
 		return
 	}
 
-	for _, f := range fields {
-		if _, ok := rec[f]; !ok {
-			respondError(fmt.Sprintf("missing field: %s", f))
-			return
-		}
+	if msg := validateRecord(rec); msg != "" {
+		respondError(msg)
+		return
 	}
 
 	records = append(records, rec)
 	respondOK(nil)
+}
+
+func validateRecord(rec map[string]string) string {
+	for _, f := range fields {
+		if _, ok := rec[f]; !ok {
+			return fmt.Sprintf("missing field: %s", f)
+		}
+	}
+	for k := range rec {
+		found := false
+		for _, f := range fields {
+			if k == f {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Sprintf("unexpected field: %s", k)
+		}
+	}
+	return ""
 }
 
 func matchRecord(rec map[string]string, filter map[string]string) bool {
@@ -194,7 +238,20 @@ func matchRecord(rec map[string]string, filter map[string]string) bool {
 	return true
 }
 
+func cmdCount() {
+	if !loaded {
+		respondError("no file loaded")
+		return
+	}
+	respondOK(map[string]interface{}{"count": len(records)})
+}
+
 func cmdSelect(payload string) {
+	if !loaded {
+		respondError("no file loaded")
+		return
+	}
+
 	var filter map[string]string
 	if err := json.Unmarshal([]byte(payload), &filter); err != nil {
 		respondError(fmt.Sprintf("bad json: %v", err))
@@ -216,6 +273,11 @@ func cmdSelect(payload string) {
 }
 
 func cmdDelete(payload string) {
+	if !loaded {
+		respondError("no file loaded")
+		return
+	}
+
 	var filter map[string]string
 	if err := json.Unmarshal([]byte(payload), &filter); err != nil {
 		respondError(fmt.Sprintf("bad json: %v", err))

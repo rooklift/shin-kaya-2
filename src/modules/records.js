@@ -13,9 +13,9 @@ function create_record(root, relpath) {					// root is an SGF node
 	let ret = {
 		relpath:   relpath,
 		dyer:      root.dyer(),
-		movecount: move_count(root),
-		SZ:        19,									// Maybe changed below.
-		HA:        0,									// Maybe changed below.
+		movecount: move_count(root).toString(),
+		SZ:        "19",								// Maybe changed below.
+		HA:        "0",									// Maybe changed below.
 		PB:        root.get("PB"),
 		PW:        root.get("PW"),
 		BR:        root.get("BR"),
@@ -29,7 +29,7 @@ function create_record(root, relpath) {					// root is an SGF node
 	for (let key of ["SZ", "HA"]) {
 		let i = parseInt(root.get(key), 10);
 		if (!Number.isNaN(i)) {
-			ret[key] = i;
+			ret[key] = i.toString();
 		}
 	}
 
