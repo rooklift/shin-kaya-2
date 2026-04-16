@@ -1,11 +1,14 @@
 "use strict";
 
 const child_process = require("child_process");
+const path = require("path");
 const readline = require("readline");
+
+let exe_name = process.platform === "win32" ? "simpledb.exe" : "simpledb";
 
 exports.new_db = function() {
 
-	let exe = child_process.spawn("./simpledb.exe");
+	let exe = child_process.spawn(path.join("./", exe_name));		// cwd is already set to the /src directory.
 
 	let shutdown = false;
 	let queue = [];				// {cmd, resolve, reject} objects waiting to be sent
