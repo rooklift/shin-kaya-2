@@ -247,18 +247,20 @@ func validateRecord(rec map[string]string) string {
 		}
 	}
 	for k := range rec {
-		found := false
-		for _, f := range fields {
-			if k == f {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !isExpectedField(k) {
 			return fmt.Sprintf("unexpected field: %s", k)
 		}
 	}
 	return ""
+}
+
+func isExpectedField(k string) bool {
+	for _, f := range fields {
+		if k == f {
+			return true
+		}
+	}
+	return false
 }
 
 type parsedFilter struct {
@@ -284,12 +286,20 @@ func parseFilter(payload string) (*parsedFilter, string) {
 			if len(pair[0]) != 2 {
 				return nil, "__pair__ must have exactly 2 field names"
 			}
+			for _, fk := range pair[0] {
+				if !isExpectedField(fk) {
+					return nil, fmt.Sprintf("unexpected field in __pair__: %s", fk)
+				}
+			}
 			pf.pairKeys = pair[0]
 			pf.pairValues = pair[1]
 			if len(pf.pairValues) > 2 {
 				return nil, "__pair__ must have 0, 1, or 2 values"
 			}
 			continue
+		}
+		if !isExpectedField(k) {
+			return nil, fmt.Sprintf("unexpected field: %s", k)
 		}
 		var s string
 		if err := json.Unmarshal(v, &s); err != nil {
