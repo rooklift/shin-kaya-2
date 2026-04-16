@@ -80,6 +80,7 @@ let hub_main_props = {
 	reset_db: function() {
 		if (!this.unable()) {
 			db.current()("clear");
+			db.current()("save");
 			this.display_row_count();
 		}
 	},
