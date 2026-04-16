@@ -61,6 +61,7 @@ let hub_main_props = {
 			}
 			document.getElementById("status").innerHTML = `Update completed - deletions: ${o.deletions}, additions: ${o.additions}`;
 		}).catch(err => {
+			console.log(err);
 			document.getElementById("status").innerHTML = err.toString();
 		});
 	},
@@ -90,10 +91,9 @@ let hub_main_props = {
 
 	display_row_count: function() {
 		if (!this.unable()) {
-			//let st = db.current().prepare(`SELECT COUNT(*) FROM Games`);
-			//let count = st.get()["COUNT(*)"];
-			let count = 1234;
-			document.getElementById("status").innerHTML = `Database has ${count} entries - ${config.sgfdir}`;
+			db.current()("count").then(o => {
+				document.getElementById("status").innerHTML = `Database has ${o.count} entries - ${config.sgfdir}`;
+			});
 		}
 	},
 

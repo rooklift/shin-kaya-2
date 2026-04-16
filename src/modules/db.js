@@ -59,6 +59,10 @@ exports.update = function() {
 
 	work_in_progress = true;
 
+	let missing_files = [];
+	let new_files = [];
+	let new_records = [];
+
 	return Promise.all
 	(
 		[
@@ -84,9 +88,6 @@ exports.update = function() {
 
 		// Make the diffs...
 
-		let missing_files = [];
-		let new_files = [];
-
 		for (let key of Object.keys(db_set)) {
 			if (!file_set[key]) {
 				missing_files.push(key);
@@ -107,9 +108,21 @@ exports.update = function() {
 		for (let relpath of new_files) {
 			let record = create_record_from_path(config.sgfdir, relpath);
 			all_promises.push(current_db(`add ${JSON.stringify(record)}`));
+			new_records.push(record);
+		}
+
+		if (all_promises.length > 0) {
+			all_promises.push(current_db(`save`));
 		}
 
 		return Promise.all(all_promises);
+
+	})
+
+	.then(() => {
+
+		return {additions: new_files.length, deletions: missing_files.length, new_records: new_records}
+
 	});
 
 };
