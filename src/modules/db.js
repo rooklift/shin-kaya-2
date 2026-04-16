@@ -223,6 +223,7 @@ exports.update = function() {
 				missing_files.push(key);
 			}
 		}
+		missing_files.sort();
 		for (let key of Object.keys(file_set)) {
 			if (!db_set[key]) {
 				new_files.push(key);
