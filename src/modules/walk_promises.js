@@ -6,6 +6,8 @@ const { replace_all, ends_with_any } = require("./utils");
 
 const skippable_ends = [".db", ".db-shm", ".db-wal", "journal"];
 
+let count = 0;
+
 async function list_all_files(archivepath, relpath) {
 	let ret = [];
 	let read = await fs.readdir(slashpath.join(archivepath, relpath));
@@ -17,6 +19,10 @@ async function list_all_files(archivepath, relpath) {
 		let new_relpath = slashpath.join(relpath, o);
 		if (o_lower.endsWith(".sgf")) {												// We think this is a file...
 			ret.push(new_relpath);
+			count++;
+			if (count > 50) {
+				document.getElementById("status").innerHTML = `File count: ${count}`;
+			}
 		} else {																	// We think this is a directory... but maybe not.
 			try {
 				let recurse = await list_all_files(archivepath, new_relpath);
