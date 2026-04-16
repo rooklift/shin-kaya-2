@@ -105,7 +105,6 @@ let board_prototype = {
 		// Destroys the group and returns the number of stones removed.
 
 		let group = this.group_at(s);
-		let colour = this.state_at(s);
 
 		for (let point of group) {
 			this.set_at(point, "");
