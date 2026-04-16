@@ -3,7 +3,8 @@ Simple JSONL Database
 
 A schema-agnostic in-memory database that communicates via stdin/stdout.
 Records are stored as JSON Lines (one JSON object per line).
-All field values are strings.
+All field values are strings. The schema is strict: records must contain
+exactly the expected fields, no more, no less.
 
 
 Startup Sequence
@@ -23,7 +24,7 @@ Commands
 expect <field_list>
     Must be the first command. Defines the expected fields as a JSON
     array of strings. All subsequent add/load operations validate
-    against these fields.
+    against these fields (both missing and extra fields are rejected).
 
     Example:  expect ["name","city","age"]
     Response: {"ok":true}
@@ -31,7 +32,8 @@ expect <field_list>
 load <filepath>
     Loads records from a JSONL file. If the file does not exist, starts
     with an empty record set (the file will be created on save). Each
-    record is validated against the expected fields.
+    record is validated against the expected fields. If any record fails
+    validation, the load is rejected and the previous state is preserved.
 
     Example:  load /home/user/data.jsonl
     Response: {"ok":true,"count":250000}
@@ -43,9 +45,22 @@ save
     Response: {"ok":true}
 
 add <json_record>
-    Adds a new record. All expected fields must be present.
+    Adds a new record. Must contain exactly the expected fields.
 
     Example:  add {"name":"Alice","city":"London","age":"30"}
+    Response: {"ok":true}
+
+count
+    Returns the number of records currently in memory.
+
+    Example:  count
+    Response: {"ok":true,"count":250000}
+
+clear
+    Deletes all records in memory. The file path and schema are
+    retained, so add and save still work afterwards.
+
+    Example:  clear
     Response: {"ok":true}
 
 select <json_filter>
@@ -65,9 +80,11 @@ select <json_filter>
     Example:  select {}
     Response: (returns all records)
 
+    Pair matching (see below) can also be used in select filters.
+
 delete <json_filter>
     Deletes all records matching the filter. Matching works the same
-    as select. Returns the number of deleted records.
+    as select, including pair matching. Returns the number deleted.
 
     Example:  delete {"name":"John Smith"}
     Response: {"ok":true,"count":1}
@@ -76,12 +93,46 @@ quit
     Exits the program immediately. Does not auto-save.
 
 
+Pair Matching
+-------------
+
+The special key "__pair__" can be included in a select or delete
+filter to match two fields where the values are interchangeable.
+The value is an array of two arrays: field names and search values.
+
+    "__pair__": [["fieldA", "fieldB"], ["value1", "value2"]]
+
+Two values provided:
+    Matches if (fieldA=value1 AND fieldB=value2) OR
+               (fieldA=value2 AND fieldB=value1).
+
+    Example:  select {"__pair__": [["PB","PW"], ["Alice","Bob"]]}
+    Finds games where Alice played Black and Bob played White,
+    or Alice played White and Bob played Black.
+
+One value provided:
+    Matches if fieldA=value OR fieldB=value.
+
+    Example:  select {"__pair__": [["PB","PW"], ["Alice"]]}
+    Finds all games where Alice played either color.
+
+Zero values:
+    Omit "__pair__" entirely; use a normal filter.
+
+Pair matching is combined with AND logic against any other fields
+in the same filter:
+
+    select {"__pair__": [["PB","PW"], ["Alice","Bob"]], "EV": "title"}
+    Finds games between Alice and Bob in events containing "title".
+
+
 Error Responses
 ---------------
 
 Any command can return an error instead of a success response:
 
     {"error":"missing field \"age\""}
+    {"error":"unexpected field \"bogus\""}
 
 
 Notes
@@ -91,3 +142,6 @@ Notes
 - Delete can remove multiple records if the filter matches broadly.
 - Save overwrites the file entirely each time.
 - There is no auto-save; call save explicitly after mutations.
+- A failed load does not alter the current in-memory state.
+- Commands other than expect, load, and quit require a successful
+  load to have been completed first.
