@@ -67,7 +67,7 @@ let hub_main_props = {
 	},
 
 	stop_update: function() {
-		db.stop_update();
+		// db.stop_update();		// FIXME maybe
 	},
 
 	unable: function() {
@@ -129,17 +129,6 @@ let hub_main_props = {
 		`);
 
 		return st.iterate(binding);
-	},
-
-	get_all: function() {			// For debugging, returns the actual SQL records.
-		if (this.unable()) {
-			return null;
-		}
-		let records = [];
-		for (let o of this.get_iterator_from_fields()) {
-			records.push(o);
-		}
-		return records;
 	},
 
 	handle_iterator: function(iterator) {

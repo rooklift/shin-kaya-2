@@ -60,6 +60,8 @@ func handleCommand(line string) {
 		cmdAdd(line[4:])
 	} else if line == "count" {
 		cmdCount()
+	} else if line == "clear" {
+		cmdClear()
 	} else if strings.HasPrefix(line, "select ") {
 		cmdSelect(line[7:])
 	} else if strings.HasPrefix(line, "delete ") {
@@ -244,6 +246,15 @@ func cmdCount() {
 		return
 	}
 	respondOK(map[string]interface{}{"count": len(records)})
+}
+
+func cmdClear() {
+	if !loaded {
+		respondError("no file loaded")
+		return
+	}
+	records = nil
+	respondOK(nil)
 }
 
 func cmdSelect(payload string) {
