@@ -4,7 +4,7 @@ const { ipcRenderer, shell } = require("electron");
 const fs = require("fs/promises");
 
 const config_io = require("./config_io");
-const db = require("./db");
+const db = require("./db_new");
 const new_node = require("./node");
 const set_thumbnail = require("./thumbnail");
 const load_sgf = require("./load_sgf");
@@ -45,8 +45,10 @@ let hub_main_props = {
 			alert("Unable. Work is in progress.");
 			return;
 		}
-		db.connect();
-		this.display_row_count();
+		db.connect().then(() => this.display_row_count()).catch(err => {
+			console.log(err);
+			document.getElementById("status").innerHTML = err.toString();
+		});
 	},
 
 	update_db: function() {
@@ -74,7 +76,7 @@ let hub_main_props = {
 			alert("Unable. Work is in progress.");
 			return true;
 		}
-		if (!db.current()) {
+		if (!db.connected()) {
 			this.display_no_connection();
 			return true;
 		}
@@ -83,17 +85,13 @@ let hub_main_props = {
 
 	reset_db: function() {
 		if (!this.unable()) {
-			db.current()("clear");
-			db.current()("save");
-			this.display_row_count();
+			db.clear().then(() => db.save()).then(() => this.display_row_count());
 		}
 	},
 
 	display_row_count: function() {
 		if (!this.unable()) {
-			db.current()("count").then(o => {
-				document.getElementById("status").innerHTML = `Database has ${o.count} entries - ${config.sgfdir}`;
-			});
+			document.getElementById("status").innerHTML = `Database has ${db.count()} entries - ${config.sgfdir}`;
 		}
 	},
 
@@ -146,18 +144,9 @@ let hub_main_props = {
 			return;
 		}
 
-		let P1 = document.getElementById("P1").value.trim();
-		let P2 = document.getElementById("P2").value.trim();
-
-		let pair = null;
-
-		if (P1 && P2) {
-			pair = [["PB", "PW"], [P1, P2]]
-		} else if (P1 || P2) {
-			pair = [["PB", "PW"], [P1 || P2]]
-		}
-
 		let binding = {
+			P1:			document.getElementById("P1").value.trim(),
+			P2:			document.getElementById("P2").value.trim(),
 			relpath:	document.getElementById("relpath").value.trim(),
 			dyer:		document.getElementById("dyer").value.trim(),
 			DT:			document.getElementById("DT").value.trim(),
@@ -165,17 +154,13 @@ let hub_main_props = {
 			RO:			document.getElementById("RO").value.trim(),
 		};
 
-		if (pair) {
-			binding["__pair__"] = pair;
-		}
-
 		for (let key of Object.keys(binding)) {
 			if (binding[key] === "") {
 				delete binding[key];
 			}
 		}
 
-		db.current()(`select ${JSON.stringify(binding)}`).then(records => this.handle_records(records));
+		db.select(binding).then(records => this.handle_records(records));
 	},
 
 	set_preview_from_path: function(new_preview_path) {
