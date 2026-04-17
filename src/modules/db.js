@@ -18,11 +18,6 @@ let work_in_progress = false;
 let abort_flag = false;
 
 function update_status(msg) {
-
-	if (typeof document === "undefined") {
-		return;
-	}
-
 	let el = document.getElementById("status");
 	if (el) {
 		el.innerHTML = msg;
@@ -30,9 +25,7 @@ function update_status(msg) {
 }
 
 function update_import_status(deletions_done, deletions_total, additions_done, additions_total, phase) {
-	update_status(
-		`Updating database (${phase}) - deletions: ${deletions_done}/${deletions_total}, additions: ${additions_done}/${additions_total}`
-	);
+	update_status(`Updating database (${phase}) - deletions: ${deletions_done}/${deletions_total}, additions: ${additions_done}/${additions_total}`);
 }
 
 function delay(ms) {
@@ -42,27 +35,21 @@ function delay(ms) {
 }
 
 function ensure_update_can_continue(database, where) {
-
 	if (database !== current_db) {
 		throw new Error(`${where}: database changed unexpectedly`);
 	}
-
 	if (abort_flag) {
 		throw new Error(`${where}: aborted by user`);
 	}
 }
 
 async function maybe_yield(database, started_at, where) {
-
 	ensure_update_can_continue(database, where);
-
 	if (Date.now() - started_at < YIELD_AFTER_MS) {
 		return started_at;
 	}
-
 	await delay(RESUME_DELAY_MS);
 	ensure_update_can_continue(database, where);
-
 	return Date.now();
 }
 
@@ -141,6 +128,8 @@ async function continue_update(database, archivepath, missing_files, new_files, 
 		await database("save");
 	}
 }
+
+// ------------------------------------------------------------------------------------------------
 
 exports.current = function() {
 	return current_db;
