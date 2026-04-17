@@ -2,4 +2,10 @@
 
 Simple go game database app. This is a modification of [Shin Kaya](https://github.com/rooklift/shin-kaya) to use a simple-minded database program written in Golang, rather than SQL. This avoids certain annoyances around SQL and Electron.
 
-The `simpledb.go` file must be compiled into an executable. Also (and this is mostly a note to self) it may help to make a Windows Antivirus exclusion for the folder which contains the SGF files.
+## About simpledb
+
+The `simpledb.go` file must be compiled into an executable. It is a simple database written by some combinatinon of Opus and GPT. It is fast enough, with the caveat that the Windows Antimalware Service often interferes with it. It may help to make a Windows Antivirus exclusion for some combination of:
+
+* The simpledb executable.
+* The electron executable.
+* The folder which contains the SGF files.
