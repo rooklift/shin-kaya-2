@@ -94,34 +94,34 @@ exports.update = async function() {
 	let new_files = [];
 	let new_records = [];
 
-	let files = await list_all_files(archivepath, "");
-
-	let db_set = Object.create(null);
-	let file_set = Object.create(null);
-
-	for (let f of files) {
-		file_set[f] = true;
-	}
-
-	for (let o of current_db.records) {
-		db_set[o.relpath] = true;
-	}
-
-	// Make the diffs...
-
-	for (let key of Object.keys(db_set)) {
-		if (!file_set[key]) {
-			missing_files.push(key);
-		}
-	}
-	missing_files.sort();
-	for (let key of Object.keys(file_set)) {
-		if (!db_set[key]) {
-			new_files.push(key);
-		}
-	}
-
 	try {
+		let files = await list_all_files(archivepath, "");
+
+		let db_set = Object.create(null);
+		let file_set = Object.create(null);
+
+		for (let f of files) {
+			file_set[f] = true;
+		}
+
+		for (let o of database.records) {
+			db_set[o.relpath] = true;
+		}
+
+		// Make the diffs...
+
+		for (let key of Object.keys(db_set)) {
+			if (!file_set[key]) {
+				missing_files.push(key);
+			}
+		}
+		missing_files.sort();
+		for (let key of Object.keys(file_set)) {
+			if (!db_set[key]) {
+				new_files.push(key);
+			}
+		}
+
 		await perform_deletions(database, missing_files, new_files.length);
 		await perform_additions(database, archivepath, missing_files.length, new_files, new_records);
 		throw_if_cannot_continue(database);			// Before we save.
@@ -130,14 +130,11 @@ exports.update = async function() {
 			update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length, "saving");
 			await database.save();
 		}
-	} catch (err) {
-		throw err;
+		return {additions: new_files.length, deletions: missing_files.length, new_records: new_records}
 	} finally {
 		work_in_progress = false;
 		abort_flag = false;
 	}
-
-	return {additions: new_files.length, deletions: missing_files.length, new_records: new_records}
 };
 
 exports.clear = async function() {
