@@ -34,22 +34,22 @@ function delay(ms) {
 	});
 }
 
-function ensure_update_can_continue(database, where) {
+function throw_if_cannot_continue(database) {
 	if (database !== current_db) {
-		throw new Error(`${where}: database changed unexpectedly`);
+		throw new Error(`database changed unexpectedly`);
 	}
 	if (abort_flag) {
-		throw new Error(`${where}: aborted by user`);
+		throw new Error(`aborted by user`);
 	}
 }
 
-async function maybe_yield(database, started_at, where) {
-	ensure_update_can_continue(database, where);
+async function maybe_yield(database, started_at) {
+	throw_if_cannot_continue(database);
 	if (Date.now() - started_at < YIELD_AFTER_MS) {
 		return started_at;
 	}
 	await delay(RESUME_DELAY_MS);
-	ensure_update_can_continue(database, where);
+	throw_if_cannot_continue(database);
 	return Date.now();
 }
 
@@ -64,7 +64,7 @@ async function continue_deletions(database, missing_files, new_files_total) {
 	}
 
 	for (let relpath of missing_files) {
-		ensure_update_can_continue(database, "continue_deletions()");
+		throw_if_cannot_continue(database);
 		batch_promises.push(database(`deleteone ${JSON.stringify({relpath: relpath})}`));
 
 		if (batch_promises.length >= DELETION_BATCH_SIZE) {
@@ -94,7 +94,7 @@ async function continue_additions(database, archivepath, missing_files_total, ne
 	}
 
 	for (let relpath of new_files) {
-		ensure_update_can_continue(database, "continue_additions()");
+		throw_if_cannot_continue(database);
 
 		let record = create_record_from_path(archivepath, relpath);
 		batch_promises.push(database(`add ${JSON.stringify(record)}`));
@@ -118,10 +118,12 @@ async function continue_additions(database, archivepath, missing_files_total, ne
 
 async function continue_update(database, archivepath, missing_files, new_files, new_records) {
 
-	ensure_update_can_continue(database, "continue_update()");
+	throw_if_cannot_continue(database);
 
 	await continue_deletions(database, missing_files, new_files.length);
 	await continue_additions(database, archivepath, missing_files.length, new_files, new_records);
+
+	throw_if_cannot_continue(database);
 
 	if (missing_files.length > 0 || new_files.length > 0) {
 		update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length, "saving");
