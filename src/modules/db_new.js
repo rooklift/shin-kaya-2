@@ -11,18 +11,28 @@ let current_db = null;
 let work_in_progress = false;
 let abort_flag = false;
 
-exports.current = function() {
-	// FIXME - probably factor this out.
+exports.connected = function() {
+	return Boolean(current_db);
 };
 
 exports.wip = function() {
 	return work_in_progress;
 };
 
+exports.stop_update = function() {
+	if (work_in_progress) {
+		abort_flag = true;
+	}
+}
+
+// Everything below is declared as async on the theory that many things might be
+// batched later (yielding to the GUI while they work) or at least it's nice to
+// keep things consistent so everything returns promises.
+
 exports.connect = async function() {
 
 	if (work_in_progress) {
-		throw new Error("connect() called while work in progress");
+		throw new Error("connect(): work was in progress");
 	}
 
 	current_db = null;
@@ -34,7 +44,59 @@ exports.connect = async function() {
 
 	work_in_progress = true;
 	current_db = await new_db(slashpath.join(config.sgfdir, ".shin-kaya-2.jsonl"));
+	work_in_progress = false;
 };
+
+exports.select = async function(filter) {
+	if (work_in_progress) {
+		throw new Error("select(): work was in progress");
+	}
+	if (!current_db) {
+		throw new Error("select(): no database");
+	}
+	work_in_progress = true;
+	let results = await current_db.select(filter);
+	work_in_progress = false;
+};
+
+exports.update = async function() {
+	if (work_in_progress) {
+		throw new Error("update(): work in progress");
+	}
+	if (!current_db) {
+		throw new Error("update(): no database");
+	}
+	work_in_progress = true;
+	// TODO
+	work_in_progress = false;
+};
+
+exports.clear = async function() {
+	if (work_in_progress) {
+		throw new Error("clear(): work in progress");
+	}
+	if (!current_db) {
+		throw new Error("clear(): no database");
+	}
+	work_in_progress = true;
+	current_db.clear();
+	work_in_progress = false;
+};
+
+exports.save = async function() {
+	if (work_in_progress) {
+		throw new Error("save(): work in progress");
+	}
+	if (!current_db) {
+		throw new Error("save(): no database");
+	}
+	work_in_progress = true;
+	await current_db.save();
+	work_in_progress = false;
+};
+
+
+// ------------------------------------------------------------------------------------------------
 
 async function new_db(filepath) {
 	let db = Object.create(db_prototype);
@@ -47,8 +109,7 @@ const db_prototype = {
 		this.records = [];
 		this.filepath = filepath;
 		this.delete_hint = 0;
-
-		// FIXME - load the records from the file, if present, and sort.
+		await this.load(filepath);
 	},
 
 	load: async function() {
@@ -72,11 +133,11 @@ const db_prototype = {
 		}
 		this.records = temp;
 		this.delete_hint = 0;
-		this.sort();
+		await this.sort();
 		return {count: this.records.length};
 	},
 
-	sort: function() {
+	sort: async function() {
 		this.records.sort((a, b) => {
 			if (a.relpath < b.relpath) return -1;
 			if (a.relpath > b.relpath) return 1;
@@ -96,7 +157,7 @@ const db_prototype = {
 		let content = parts.join("");
 		try {
 			await fs.promises.writeFile(temp_path, content);
-			await fs.promises.rename(temp_path, state.filepath);
+			await fs.promises.rename(temp_path, this.filepath);
 			return;
 		} catch (err) {
 			fs.promises.unlink(temp_path).catch(() => {});
@@ -104,32 +165,63 @@ const db_prototype = {
 		}
 	},
 
-	add: function(rec) {
-		let msg = validate_record(state, rec);
+	add: async function(rec) {
+		let msg = validate_record(rec);
 		if (msg) {
 			throw new Error(msg);
 		}
 		let val = rec.relpath;
 		let lo = 0;
-		let hi = state.records.length;
+		let hi = this.records.length;
 		while (lo < hi) {
 			let mid = (lo + hi) >> 1;
-			if (state.records[mid].relpath < val) {
+			if (this.records[mid].relpath < val) {
 				lo = mid + 1;
 			} else {
 				hi = mid;
 			}
 		}
-		state.records.splice(lo, 0, rec);
+		this.records.splice(lo, 0, rec);
 	},
 
-	select: function(o) {
+	select: async function(filter) {
 
+		let results = [];
 
+		for (let rec of this.records) {
+			if (record_matches(rec, filter)) {
+				results.push(rec);
+			}
+		}
 
+		return results;
+	},
 
+	clear: async function() {
+		this.records = [];
+		this.delete_hint = 0;
+	},
 
+	deleteone: async function(relpath) {
+		// TODO
+	},
 
+}
+
+function record_matches(rec, filter) {
+	for (let key of Object.keys(filter)) {
+		let val = filter[key].toLowerCase();
+		if (key === "P1" or key === "P2") {
+			if (!rec.PB.toLowerCase().includes(val) && !rec.PW.toLowerCase().includes(val)) {
+				return false;
+			}
+		} else {
+			if (!rec[key].toLowerCase().includes(val)) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 function validate_record(rec) {
