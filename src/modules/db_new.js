@@ -350,41 +350,39 @@ function validate_record(rec) {
 
 async function perform_deletions(database, missing_files, new_files_total) {
 
-	let batch_promises = [];
 	let deletions_done = 0;
 
 	if (missing_files.length > 0) {
 		update_import_status(0, missing_files.length, 0, new_files_total, "deleting");
+		await yield_to_gui();
 	}
 
 	for (let relpath of missing_files) {
 
-		batch_promises.push(database.deleteone(relpath));
+		await database.deleteone(relpath);
+		deletions_done++;
 
-		if (batch_promises.length >= DELETION_BATCH_SIZE) {
-			await Promise.all(batch_promises);
+		if (deletions_done % DELETION_BATCH_SIZE === 0) {
 			throw_if_cannot_continue(database);
-			deletions_done += batch_promises.length;
 			update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
-			batch_promises = [];
+			await yield_to_gui();
 		}
 	}
 
-	if (batch_promises.length > 0) {
-		await Promise.all(batch_promises);
+	if (deletions_done % DELETION_BATCH_SIZE !== 0) {
 		throw_if_cannot_continue(database);
-		deletions_done += batch_promises.length;
 		update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
+		await yield_to_gui();
 	}
 }
 
 async function perform_additions(database, archivepath, missing_files_total, new_files, new_records) {
 
-	let batch_promises = [];
 	let additions_done = 0;
 
 	if (new_files.length > 0) {
 		update_import_status(missing_files_total, missing_files_total, 0, new_files.length, "adding");
+		await yield_to_gui();
 	}
 
 	for (let relpath of new_files) {
@@ -395,23 +393,21 @@ async function perform_additions(database, archivepath, missing_files_total, new
 			console.log(relpath, err);
 			continue;
 		}
-		batch_promises.push(database.add(record));
+		await database.add(record);
 		new_records.push(record);
+		additions_done++;
 
-		if (batch_promises.length >= ADDITION_BATCH_SIZE) {
-			await Promise.all(batch_promises);
+		if (additions_done % ADDITION_BATCH_SIZE === 0) {
 			throw_if_cannot_continue(database);
-			additions_done += batch_promises.length;
 			update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
-			batch_promises = [];
+			await yield_to_gui();
 		}
 	}
 
-	if (batch_promises.length > 0) {
-		await Promise.all(batch_promises);
+	if (additions_done % ADDITION_BATCH_SIZE !== 0) {
 		throw_if_cannot_continue(database);
-		additions_done += batch_promises.length;
 		update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
+		await yield_to_gui();
 	}
 }
 
@@ -433,4 +429,14 @@ function update_status(msg) {
 
 function update_import_status(deletions_done, deletions_total, additions_done, additions_total, phase) {
 	update_status(`Updating database (${phase}) - deletions: ${deletions_done}/${deletions_total}, additions: ${additions_done}/${additions_total}`);
+}
+
+function yield_to_gui() {
+	return new Promise(resolve => {
+		if (typeof requestAnimationFrame === "function") {
+			requestAnimationFrame(() => resolve());
+		} else {
+			setTimeout(resolve, 0);
+		}
+	});
 }
