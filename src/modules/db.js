@@ -8,8 +8,8 @@ const slashpath = require("./slashpath");
 const { list_all_files } = require("./walk_promises");
 const { create_record_from_path } = require("./records");
 
-const DELETION_BATCH_SIZE = 50;
-const ADDITION_BATCH_SIZE = 50;
+const DELETION_BATCH_SIZE = 43;
+const ADDITION_BATCH_SIZE = 47;
 const YIELD_AFTER_MS = 25;
 const RESUME_DELAY_MS = 5;
 
@@ -149,7 +149,6 @@ async function continue_update(database, archivepath, missing_files, new_files, 
 async function continue_deletions(database, missing_files, new_files_total) {
 
 	let batch_promises = [];
-	let started_at = Date.now();
 	let deletions_done = 0;
 
 	if (missing_files.length > 0) {
@@ -165,7 +164,6 @@ async function continue_deletions(database, missing_files, new_files_total) {
 			deletions_done += batch_promises.length;
 			update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
 			batch_promises = [];
-			started_at = await maybe_yield(database, started_at, "continue_deletions()");
 		}
 	}
 
@@ -179,7 +177,6 @@ async function continue_deletions(database, missing_files, new_files_total) {
 async function continue_additions(database, archivepath, missing_files_total, new_files, new_records) {
 
 	let batch_promises = [];
-	let started_at = Date.now();
 	let additions_done = 0;
 
 	if (new_files.length > 0) {
@@ -193,12 +190,11 @@ async function continue_additions(database, archivepath, missing_files_total, ne
 		batch_promises.push(database(`add ${JSON.stringify(record)}`));
 		new_records.push(record);
 
-		if (batch_promises.length >= ADDITION_BATCH_SIZE || Date.now() - started_at >= YIELD_AFTER_MS) {
+		if (batch_promises.length >= ADDITION_BATCH_SIZE) {
 			await Promise.all(batch_promises);
 			additions_done += batch_promises.length;
 			update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
 			batch_promises = [];
-			started_at = await maybe_yield(database, started_at, "continue_additions()");
 		}
 	}
 
@@ -209,12 +205,6 @@ async function continue_additions(database, archivepath, missing_files_total, ne
 	}
 }
 
-function delay(ms) {
-	return new Promise(resolve => {
-		setTimeout(resolve, ms);
-	});
-}
-
 function throw_if_cannot_continue(database) {
 	if (database !== current_db) {
 		throw new Error(`database changed unexpectedly`);
@@ -222,16 +212,6 @@ function throw_if_cannot_continue(database) {
 	if (abort_flag) {
 		throw new Error(`aborted by user`);
 	}
-}
-
-async function maybe_yield(database, started_at) {
-	throw_if_cannot_continue(database);
-	if (Date.now() - started_at < YIELD_AFTER_MS) {
-		return started_at;
-	}
-	await delay(RESUME_DELAY_MS);
-	throw_if_cannot_continue(database);
-	return Date.now();
 }
 
 // ------------------------------------------------------------------------------------------------
