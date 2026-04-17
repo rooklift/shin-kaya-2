@@ -34,8 +34,16 @@ exports.new_db = function() {
 		// Run each command as a macrotask (not a microtask), so the renderer
 		// can paint and handle input between commands. This mimics the natural
 		// yielding the old IPC-based implementation got for free.
-		let p = queue.then(() => new Promise(resolve => {
-			setImmediate(() => resolve(handle(state, cmd)));
+		// The try/catch is needed because a synchronous throw inside the
+		// setImmediate callback would otherwise escape as an uncaught exception.
+		let p = queue.then(() => new Promise((resolve, reject) => {
+			setImmediate(() => {
+				try {
+					resolve(handle(state, cmd));
+				} catch (err) {
+					reject(err);
+				}
+			});
 		}));
 		queue = p.catch(() => {});
 		return p;
@@ -178,7 +186,9 @@ function cmd_add(state, payload) {
 	if (!state.loaded) throw new Error("no file loaded");
 	let rec = JSON.parse(payload);
 	let msg = validate_record(state, rec);
-	if (msg) throw new Error(msg);
+	if (msg) {
+		throw new Error(msg);
+	}
 
 	if (state.sort_field !== "") {
 		let sf = state.sort_field;
@@ -302,6 +312,9 @@ function validate_record(state, rec) {
 	for (let f of state.fields) {
 		if (!Object.prototype.hasOwnProperty.call(rec, f)) {
 			return `missing field: ${f}`;
+		}
+		if (typeof rec[f] !== "string") {
+			return `field ${f} must be a string`;
 		}
 	}
 	for (let k of Object.keys(rec)) {
