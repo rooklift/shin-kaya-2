@@ -316,16 +316,38 @@ const db_prototype = {
 // ------------------------------------------------------------------------------------------------
 
 function record_matches(rec, filter) {
+	let p1 = filter.P1;
+	let p2 = filter.P2;
+
+	if (typeof p1 === "string" && typeof p2 === "string") {
+		let pb = rec.PB.toLowerCase();
+		let pw = rec.PW.toLowerCase();
+		let p1_lower = p1.toLowerCase();
+		let p2_lower = p2.toLowerCase();
+		let fwd = pb.includes(p1_lower) && pw.includes(p2_lower);
+		let rev = pb.includes(p2_lower) && pw.includes(p1_lower);
+		if (!fwd && !rev) {
+			return false;
+		}
+	} else if (typeof p1 === "string") {
+		let p1_lower = p1.toLowerCase();
+		if (!rec.PB.toLowerCase().includes(p1_lower) && !rec.PW.toLowerCase().includes(p1_lower)) {
+			return false;
+		}
+	} else if (typeof p2 === "string") {
+		let p2_lower = p2.toLowerCase();
+		if (!rec.PB.toLowerCase().includes(p2_lower) && !rec.PW.toLowerCase().includes(p2_lower)) {
+			return false;
+		}
+	}
+
 	for (let key of Object.keys(filter)) {
-		let val = filter[key].toLowerCase();
 		if (key === "P1" || key === "P2") {
-			if (!rec.PB.toLowerCase().includes(val) && !rec.PW.toLowerCase().includes(val)) {
-				return false;
-			}
-		} else {
-			if (!rec[key].toLowerCase().includes(val)) {
-				return false;
-			}
+			continue;
+		}
+		let val = filter[key].toLowerCase();
+		if (!rec[key].toLowerCase().includes(val)) {
+			return false;
 		}
 	}
 	return true;
