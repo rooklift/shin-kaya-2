@@ -186,8 +186,13 @@ async function perform_additions(database, archivepath, missing_files_total, new
 	}
 
 	for (let relpath of new_files) {
-
-		let record = create_record_from_path(archivepath, relpath);
+		let record;
+		try {
+			record = create_record_from_path(archivepath, relpath);
+		} catch (err) {
+			console.log(relpath, err);
+			continue;
+		}
 		batch_promises.push(database(`add ${JSON.stringify(record)}`));
 		new_records.push(record);
 
