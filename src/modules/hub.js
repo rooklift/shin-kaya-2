@@ -97,11 +97,13 @@ let hub_main_props = {
 		}
 	},
 
-	handle_records: function(records, truncated = false) {
+	handle_records: function(records) {
+
+		let truncated_from = null;
 
 		if (records.length > 9999) {
+			truncated_from = records.length;
 			records = records.slice(0, 9999);
-			truncated = true;
 		}
 
 		this.lookups = [];
@@ -129,8 +131,8 @@ let hub_main_props = {
 			count_string += `;  deduplicated ${dedup_count} ${dedup_count === 1 ? "game" : "games"}`;
 		}
 
-		if (truncated) {
-			count_string += `;  too many results`;
+		if (truncated_from) {
+			count_string += `;  too many results (${truncated_from})`;
 		}
 
 		document.getElementById("status").innerHTML = count_string;
