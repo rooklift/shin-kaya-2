@@ -60,15 +60,69 @@ exports.select = async function(filter) {
 };
 
 exports.update = async function() {
+
 	if (work_in_progress) {
-		throw new Error("update(): work in progress");
+		return Promise.reject(new Error("update(): Work is in progress."));
 	}
 	if (!current_db) {
-		throw new Error("update(): no database");
+		return Promise.reject(new Error("update(): No database."));
 	}
+
 	work_in_progress = true;
-	// TODO
+	abort_flag = false;
+
+	let database = current_db;
+	let archivepath = config.sgfdir;
+	let missing_files = [];
+	let new_files = [];
+	let new_records = [];
+
+	let files = await list_all_files(archivepath, "");
+
+	let db_set = Object.create(null);
+	let file_set = Object.create(null);
+
+	for (let f of files) {
+		file_set[f] = true;
+	}
+
+	for (let o of current_db.records) {
+		db_set[o.relpath] = true;
+	}
+
+	// Make the diffs...
+
+	for (let key of Object.keys(db_set)) {
+		if (!file_set[key]) {
+			missing_files.push(key);
+		}
+	}
+	missing_files.sort();
+	for (let key of Object.keys(file_set)) {
+		if (!db_set[key]) {
+			new_files.push(key);
+		}
+	}
+
+	try {
+		await perform_deletions(database, missing_files, new_files.length);
+		await perform_additions(database, archivepath, missing_files.length, new_files, new_records);
+		throw_if_cannot_continue(database);			// Before we save.
+
+		if (missing_files.length > 0 || new_files.length > 0) {
+			update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length, "saving");
+			return database("save");
+		}
+	} catch (err) {
+		work_in_progress = false;
+		abort_flag = false;
+		throw err;
+	}
+
 	work_in_progress = false;
+	abort_flag = false;
+
+	return {additions: new_files.length, deletions: missing_files.length, new_records: new_records}
 };
 
 exports.clear = async function() {
@@ -112,7 +166,7 @@ const db_prototype = {
 		await this.load(filepath);
 	},
 
-	load: async function() {
+	load: async function(filepath) {
 		let data = await fs.promises.readFile(filepath, "utf8");
 		let temp = [];
 		let lines = data.split("\n");
@@ -203,15 +257,37 @@ const db_prototype = {
 	},
 
 	deleteone: async function(relpath) {
-		// TODO
+
+		let n = this.records.length;
+		if (n === 0) {
+			return;
+		}
+		if (this.delete_hint >= n) {
+			this.delete_hint = 0;
+		}
+		let idx = -1;
+		for (let i = 0; i < n; i++) {
+			let j = (this.delete_hint + i) % n;
+			if (record.relpath === relpath) {
+				idx = j;
+				break;
+			}
+		}
+		if (idx < 0) {
+			return;
+		}
+		this.records.splice(idx, 1);
+		this.delete_hint = idx;
 	},
 
 }
 
+// ------------------------------------------------------------------------------------------------
+
 function record_matches(rec, filter) {
 	for (let key of Object.keys(filter)) {
 		let val = filter[key].toLowerCase();
-		if (key === "P1" or key === "P2") {
+		if (key === "P1" || key === "P2") {
 			if (!rec.PB.toLowerCase().includes(val) && !rec.PW.toLowerCase().includes(val)) {
 				return false;
 			}
@@ -242,4 +318,91 @@ function validate_record(rec) {
 		}
 	}
 	return "";
+}
+
+async function perform_deletions(database, missing_files, new_files_total) {
+
+	let batch_promises = [];
+	let deletions_done = 0;
+
+	if (missing_files.length > 0) {
+		update_import_status(0, missing_files.length, 0, new_files_total, "deleting");
+	}
+
+	for (let relpath of missing_files) {
+
+		batch_promises.push(database.deleteone(relpath));
+
+		if (batch_promises.length >= DELETION_BATCH_SIZE) {
+			await Promise.all(batch_promises);
+			throw_if_cannot_continue(database);
+			deletions_done += batch_promises.length;
+			update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
+			batch_promises = [];
+		}
+	}
+
+	if (batch_promises.length > 0) {
+		await Promise.all(batch_promises);
+		throw_if_cannot_continue(database);
+		deletions_done += batch_promises.length;
+		update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
+	}
+}
+
+async function perform_additions(database, archivepath, missing_files_total, new_files, new_records) {
+
+	let batch_promises = [];
+	let additions_done = 0;
+
+	if (new_files.length > 0) {
+		update_import_status(missing_files_total, missing_files_total, 0, new_files.length, "adding");
+	}
+
+	for (let relpath of new_files) {
+		let record;
+		try {
+			record = create_record_from_path(archivepath, relpath);
+		} catch (err) {
+			console.log(relpath, err);
+			continue;
+		}
+		batch_promises.push(database.add(record));
+		new_records.push(record);
+
+		if (batch_promises.length >= ADDITION_BATCH_SIZE) {
+			await Promise.all(batch_promises);
+			throw_if_cannot_continue(database);
+			additions_done += batch_promises.length;
+			update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
+			batch_promises = [];
+		}
+	}
+
+	if (batch_promises.length > 0) {
+		await Promise.all(batch_promises);
+		throw_if_cannot_continue(database);
+		additions_done += batch_promises.length;
+		update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
+	}
+}
+
+function throw_if_cannot_continue(database) {
+	if (database !== current_db) {
+		throw new Error(`database changed unexpectedly`);
+	}
+	if (abort_flag) {
+		throw new Error(`aborted by user`);
+	}
+}
+
+function update_status(msg) {
+	let el = document.getElementById("status");
+	if (el) {
+		el.innerHTML = msg;
+	}
+}
+
+function update_import_status(deletions_done, deletions_total, additions_done, additions_total, phase) {
+	update_status(`Updating database (${phase}) - deletions: ${deletions_done}/${deletions_total}, additions: ${additions_done}/${additions_total}`);
 }

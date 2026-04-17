@@ -1,7 +1,7 @@
 "use strict";
 
 const { ipcRenderer } = require("electron");
-const db = require("./db");
+const db = require("./db_new");
 
 const multichecks = {
 	"preview_depth":		["View", "Preview depth (initial)"]
@@ -34,8 +34,7 @@ module.exports = {
 					config[key] = old_value;
 					alert("Unable. Work is in progress.");
 				} else {
-					db.connect();
-					this.display_row_count();
+					db.connect().then(() => this.display_row_count());
 				}
 				break;
 		}
