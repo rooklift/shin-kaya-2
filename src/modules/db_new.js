@@ -54,8 +54,11 @@ exports.connect = async function() {
 	}
 
 	work_in_progress = true;
-	current_db = await new_db(slashpath.join(config.sgfdir, ".shin-kaya-2.jsonl"));
-	work_in_progress = false;
+	try {
+		current_db = await new_db(slashpath.join(config.sgfdir, ".shin-kaya-2.jsonl"));
+	} finally {
+		work_in_progress = false;
+	}
 };
 
 exports.select = async function(filter) {
@@ -66,9 +69,11 @@ exports.select = async function(filter) {
 		throw new Error("select(): no database");
 	}
 	work_in_progress = true;
-	let results = await current_db.select(filter);
-	work_in_progress = false;
-	return results;
+	try {
+		return await current_db.select(filter);
+	} finally {
+		work_in_progress = false;
+	}
 };
 
 exports.update = async function() {
@@ -181,7 +186,17 @@ const db_prototype = {
 	},
 
 	load: async function(filepath) {
-		let data = await fs.promises.readFile(filepath, "utf8");
+		let data;
+		try {
+			data = await fs.promises.readFile(filepath, "utf8");
+		} catch (err) {
+			if (err.code === "ENOENT") {
+				this.records = [];
+				this.delete_hint = 0;
+				return;
+			}
+			throw err;
+		}
 		let temp = [];
 		let lines = data.split("\n");
 		for (let n = 0; n < lines.length; n++) {
@@ -202,7 +217,6 @@ const db_prototype = {
 		this.records = temp;
 		this.delete_hint = 0;
 		await this.sort();
-		return {count: this.records.length};
 	},
 
 	sort: async function() {
