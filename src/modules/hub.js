@@ -45,7 +45,10 @@ let hub_main_props = {
 			alert("Unable. Work is in progress.");
 			return;
 		}
-		db.connect().then(() => this.display_row_count());
+		db.connect().then(() => this.display_row_count()).catch(err => {
+			console.log(err);
+			document.getElementById("status").innerHTML = err.toString();
+		});
 	},
 
 	update_db: function() {

@@ -148,8 +148,11 @@ exports.clear = async function() {
 		throw new Error("clear(): no database");
 	}
 	work_in_progress = true;
-	current_db.clear();
-	work_in_progress = false;
+	try {
+		await current_db.clear();
+	} finally {
+		work_in_progress = false;
+	}
 };
 
 exports.save = async function() {

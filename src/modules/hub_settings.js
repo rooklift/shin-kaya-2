@@ -34,7 +34,10 @@ module.exports = {
 					config[key] = old_value;
 					alert("Unable. Work is in progress.");
 				} else {
-					db.connect().then(() => this.display_row_count());
+					db.connect().then(() => this.display_row_count()).catch(err => {
+						console.log(err);
+						document.getElementById("status").innerHTML = err.toString();
+					});
 				}
 				break;
 		}
