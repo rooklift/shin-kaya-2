@@ -101,9 +101,9 @@ let hub_main_props = {
 
 		let truncated_from = null;
 
-		if (records.length > 9999) {
+		if (records.length > 2000) {
 			truncated_from = records.length;
-			records = records.slice(0, 9999);
+			records = records.slice(0, 2000);
 		}
 
 		this.lookups = [];
