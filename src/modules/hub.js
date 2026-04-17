@@ -88,9 +88,7 @@ let hub_main_props = {
 
 	display_row_count: function() {
 		if (!this.unable()) {
-			db.count().then(o => {
-				document.getElementById("status").innerHTML = `Database has ${o.count} entries - ${config.sgfdir}`;
-			});
+			document.getElementById("status").innerHTML = `Database has ${db.count()} entries - ${config.sgfdir}`;
 		}
 	},
 

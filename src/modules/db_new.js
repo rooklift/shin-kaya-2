@@ -1,11 +1,14 @@
 "use strict";
 
 const fs = require("fs");
+const path = require("path");
 const slashpath = require("./slashpath");
 const { list_all_files } = require("./walk_promises");
 const { create_record_from_path } = require("./records");
 
 const fields = ["relpath", "dyer", "movecount", "SZ", "HA", "PB", "PW", "BR", "WR", "RE", "DT", "EV", "RO"];
+const DELETION_BATCH_SIZE = 43;
+const ADDITION_BATCH_SIZE = 47;
 
 let current_db = null;
 let work_in_progress = false;
@@ -19,11 +22,19 @@ exports.wip = function() {
 	return work_in_progress;
 };
 
+exports.count = function() {
+	if (current_db) {
+		return current_db.records.length;
+	} else {
+		return 0;
+	}
+};
+
 exports.stop_update = function() {
 	if (work_in_progress) {
 		abort_flag = true;
 	}
-}
+};
 
 // Everything below is declared as async on the theory that many things might be
 // batched later (yielding to the GUI while they work) or at least it's nice to
@@ -57,6 +68,7 @@ exports.select = async function(filter) {
 	work_in_progress = true;
 	let results = await current_db.select(filter);
 	work_in_progress = false;
+	return results;
 };
 
 exports.update = async function() {
@@ -111,16 +123,14 @@ exports.update = async function() {
 
 		if (missing_files.length > 0 || new_files.length > 0) {
 			update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length, "saving");
-			return database("save");
+			await database.save();
 		}
 	} catch (err) {
+		throw err;
+	} finally {
 		work_in_progress = false;
 		abort_flag = false;
-		throw err;
 	}
-
-	work_in_progress = false;
-	abort_flag = false;
 
 	return {additions: new_files.length, deletions: missing_files.length, new_records: new_records}
 };
@@ -145,8 +155,11 @@ exports.save = async function() {
 		throw new Error("save(): no database");
 	}
 	work_in_progress = true;
-	await current_db.save();
-	work_in_progress = false;
+	try {
+		await current_db.save();
+	} finally {
+		work_in_progress = false;
+	}
 };
 
 
@@ -154,7 +167,8 @@ exports.save = async function() {
 
 async function new_db(filepath) {
 	let db = Object.create(db_prototype);
-	return await db.init(filepath);			// Is "return await" right?
+	await db.init(filepath);
+	return db;
 }
 
 const db_prototype = {
@@ -268,7 +282,7 @@ const db_prototype = {
 		let idx = -1;
 		for (let i = 0; i < n; i++) {
 			let j = (this.delete_hint + i) % n;
-			if (record.relpath === relpath) {
+			if (this.records[j].relpath === relpath) {
 				idx = j;
 				break;
 			}
