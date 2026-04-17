@@ -85,7 +85,17 @@ let hub_main_props = {
 
 	reset_db: function() {
 		if (!this.unable()) {
-			db.clear().then(() => db.save()).then(() => this.display_row_count());
+			db.clear().then(() => db.save()).then(() => {
+				this.display_row_count();
+			}).catch(err => {
+				console.log(err);
+				db.connect().then(() => {
+					document.getElementById("status").innerHTML = `Reset failed: ${err.toString()}. Reloaded database from disk.`;
+				}).catch(reload_err => {
+					console.log(reload_err);
+					document.getElementById("status").innerHTML = `Reset failed: ${err.toString()}. Reload also failed: ${reload_err.toString()}`;
+				});
+			});
 		}
 	},
 
