@@ -10,8 +10,6 @@ const { create_record_from_path } = require("./records");
 
 const DELETION_BATCH_SIZE = 43;
 const ADDITION_BATCH_SIZE = 47;
-const YIELD_AFTER_MS = 25;
-const RESUME_DELAY_MS = 5;
 
 let current_db = null;
 let work_in_progress = false;
