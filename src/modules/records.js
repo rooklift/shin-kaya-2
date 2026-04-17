@@ -145,8 +145,8 @@ function deduplicate_records(records) {
 		if (a.dyer > b.dyer) return 1;
 		if (a.DT < b.DT) return -1;
 		if (a.DT > b.DT) return 1;
-		if (a.movecount < b.movecount) return -1;
-		if (a.movecount > b.movecount) return 1;
+		if (a.movecount < b.movecount) return -1;		// Note that (like everything else) movecount is stored
+		if (a.movecount > b.movecount) return 1;		// as a string, but this is OK for deduplication purposes.
 		return 0;
 	});
 
