@@ -105,8 +105,26 @@ exports.update = function() {
 			}
 		}
 
-		return continue_update(database, archivepath, missing_files, new_files, new_records);
+		return perform_deletions(database, missing_files, new_files.length);
 
+	})
+
+	.then(() => {
+
+		return perform_additions(database, archivepath, missing_files.length, new_files, new_records);
+
+	})
+
+	.then(() => {
+
+		throw_if_cannot_continue(database);			// Before we save.
+
+		if (missing_files.length > 0 || new_files.length > 0) {
+			update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length, "saving");
+			return database("save");
+		} else {
+			return;
+		}
 	})
 
 	.then(() => {
@@ -128,22 +146,7 @@ exports.stop_update = function() {
 
 // ------------------------------------------------------------------------------------------------
 
-async function continue_update(database, archivepath, missing_files, new_files, new_records) {
-
-	throw_if_cannot_continue(database);
-
-	await continue_deletions(database, missing_files, new_files.length);
-	await continue_additions(database, archivepath, missing_files.length, new_files, new_records);
-
-	throw_if_cannot_continue(database);
-
-	if (missing_files.length > 0 || new_files.length > 0) {
-		update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length, "saving");
-		await database("save");
-	}
-}
-
-async function continue_deletions(database, missing_files, new_files_total) {
+async function perform_deletions(database, missing_files, new_files_total) {
 
 	let batch_promises = [];
 	let deletions_done = 0;
@@ -153,11 +156,12 @@ async function continue_deletions(database, missing_files, new_files_total) {
 	}
 
 	for (let relpath of missing_files) {
-		throw_if_cannot_continue(database);
+
 		batch_promises.push(database(`deleteone ${JSON.stringify({relpath: relpath})}`));
 
 		if (batch_promises.length >= DELETION_BATCH_SIZE) {
 			await Promise.all(batch_promises);
+			throw_if_cannot_continue(database);
 			deletions_done += batch_promises.length;
 			update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
 			batch_promises = [];
@@ -166,12 +170,13 @@ async function continue_deletions(database, missing_files, new_files_total) {
 
 	if (batch_promises.length > 0) {
 		await Promise.all(batch_promises);
+		throw_if_cannot_continue(database);
 		deletions_done += batch_promises.length;
 		update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
 	}
 }
 
-async function continue_additions(database, archivepath, missing_files_total, new_files, new_records) {
+async function perform_additions(database, archivepath, missing_files_total, new_files, new_records) {
 
 	let batch_promises = [];
 	let additions_done = 0;
@@ -181,7 +186,6 @@ async function continue_additions(database, archivepath, missing_files_total, ne
 	}
 
 	for (let relpath of new_files) {
-		throw_if_cannot_continue(database);
 
 		let record = create_record_from_path(archivepath, relpath);
 		batch_promises.push(database(`add ${JSON.stringify(record)}`));
@@ -189,6 +193,7 @@ async function continue_additions(database, archivepath, missing_files_total, ne
 
 		if (batch_promises.length >= ADDITION_BATCH_SIZE) {
 			await Promise.all(batch_promises);
+			throw_if_cannot_continue(database);
 			additions_done += batch_promises.length;
 			update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
 			batch_promises = [];
@@ -197,10 +202,13 @@ async function continue_additions(database, archivepath, missing_files_total, ne
 
 	if (batch_promises.length > 0) {
 		await Promise.all(batch_promises);
+		throw_if_cannot_continue(database);
 		additions_done += batch_promises.length;
 		update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
 	}
 }
+
+// ------------------------------------------------------------------------------------------------
 
 function throw_if_cannot_continue(database) {
 	if (database !== current_db) {
