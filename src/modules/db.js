@@ -105,7 +105,6 @@ exports.update = function() {
 			}
 		}
 
-		update_import_status(0, missing_files.length, 0, new_files.length, "starting");
 		return continue_update(database, archivepath, missing_files, new_files, new_records);
 
 	})
