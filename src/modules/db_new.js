@@ -316,7 +316,7 @@ function record_matches(rec, filter) {
 	let p1 = filter.P1;
 	let p2 = filter.P2;
 
-	if (typeof p1 === "string" && typeof p2 === "string") {
+	if (p1 && p2) {
 		let pb = rec.PB.toLowerCase();
 		let pw = rec.PW.toLowerCase();
 		let p1_lower = p1.toLowerCase();
@@ -326,12 +326,12 @@ function record_matches(rec, filter) {
 		if (!fwd && !rev) {
 			return false;
 		}
-	} else if (typeof p1 === "string") {
+	} else if (p1) {
 		let p1_lower = p1.toLowerCase();
 		if (!rec.PB.toLowerCase().includes(p1_lower) && !rec.PW.toLowerCase().includes(p1_lower)) {
 			return false;
 		}
-	} else if (typeof p2 === "string") {
+	} else if (p2) {
 		let p2_lower = p2.toLowerCase();
 		if (!rec.PB.toLowerCase().includes(p2_lower) && !rec.PW.toLowerCase().includes(p2_lower)) {
 			return false;
