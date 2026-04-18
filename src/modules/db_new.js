@@ -126,7 +126,7 @@ exports.update = async function() {
 		throw_if_cannot_continue(database);			// Before we save.
 
 		if (missing_files.length > 0 || new_files.length > 0) {
-			update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length, "saving");
+			update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length);
 			await database.save();
 		}
 		return {additions: new_files.length, deletions: missing_files.length, new_records: new_records}
@@ -387,7 +387,7 @@ async function perform_deletions(database, missing_files, new_files_total) {
 	let deletions_done = 0;
 
 	if (missing_files.length > 0) {
-		update_import_status(0, missing_files.length, 0, new_files_total, "deleting");
+		update_import_status(0, missing_files.length, 0, new_files_total);
 		await yield_to_gui();
 	}
 
@@ -398,14 +398,14 @@ async function perform_deletions(database, missing_files, new_files_total) {
 
 		if (deletions_done % DELETION_BATCH_SIZE === 0) {
 			throw_if_cannot_continue(database);
-			update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
+			update_import_status(deletions_done, missing_files.length, 0, new_files_total);
 			await yield_to_gui();
 		}
 	}
 
 	if (deletions_done % DELETION_BATCH_SIZE !== 0) {
 		throw_if_cannot_continue(database);
-		update_import_status(deletions_done, missing_files.length, 0, new_files_total, "deleting");
+		update_import_status(deletions_done, missing_files.length, 0, new_files_total);
 		await yield_to_gui();
 	}
 }
@@ -416,7 +416,7 @@ async function perform_additions(database, archivepath, missing_files_total, new
 	let additions_done = 0;
 
 	if (new_files.length > 0) {
-		update_import_status(missing_files_total, missing_files_total, 0, new_files.length, "adding");
+		update_import_status(missing_files_total, missing_files_total, 0, new_files.length);
 		await yield_to_gui();
 	}
 
@@ -434,14 +434,14 @@ async function perform_additions(database, archivepath, missing_files_total, new
 
 		if (additions_done % ADDITION_BATCH_SIZE === 0) {
 			throw_if_cannot_continue(database);
-			update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
+			update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length);
 			await yield_to_gui();
 		}
 	}
 
 	if (additions_done % ADDITION_BATCH_SIZE !== 0) {
 		throw_if_cannot_continue(database);
-		update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
+		update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length);
 		await yield_to_gui();
 	}
 
@@ -464,8 +464,8 @@ function update_status(msg) {
 	}
 }
 
-function update_import_status(deletions_done, deletions_total, additions_done, additions_total, phase) {
-	update_status(`Updating database (${phase}) - deletions: ${deletions_done}/${deletions_total}, additions: ${additions_done}/${additions_total}`);
+function update_import_status(deletions_done, deletions_total, additions_done, additions_total) {
+	update_status(`Updating database - deletions: ${deletions_done}/${deletions_total}, additions: ${additions_done}/${additions_total}`);
 }
 
 function yield_to_gui() {
