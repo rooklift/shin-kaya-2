@@ -92,7 +92,6 @@ exports.update = async function() {
 	let archivepath = config.sgfdir;
 	let missing_files = [];
 	let new_files = [];
-	let new_records = [];
 
 	try {
 		let files = await list_all_files(archivepath, "");
@@ -123,7 +122,7 @@ exports.update = async function() {
 		}
 
 		await perform_deletions(database, missing_files, new_files.length);
-		await perform_additions(database, archivepath, missing_files.length, new_files, new_records);
+		let new_records = await perform_additions(database, archivepath, missing_files.length, new_files);
 		throw_if_cannot_continue(database);			// Before we save.
 
 		if (missing_files.length > 0 || new_files.length > 0) {
@@ -398,9 +397,10 @@ async function perform_deletions(database, missing_files, new_files_total) {
 	}
 }
 
-async function perform_additions(database, archivepath, missing_files_total, new_files, new_records) {
+async function perform_additions(database, archivepath, missing_files_total, new_files) {
 
 	let additions_done = 0;
+	let new_records = [];
 
 	if (new_files.length > 0) {
 		update_import_status(missing_files_total, missing_files_total, 0, new_files.length, "adding");
@@ -431,6 +431,8 @@ async function perform_additions(database, archivepath, missing_files_total, new
 		update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length, "adding");
 		await yield_to_gui();
 	}
+
+	return new_records;
 }
 
 function throw_if_cannot_continue(database) {
