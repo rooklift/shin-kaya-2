@@ -284,7 +284,7 @@ const db_prototype = {
 		this.delete_hint = 0;
 	},
 
-	deleteone: async function(relpath) {
+	delete_one: async function(relpath) {
 
 		let n = this.records.length;
 		if (n === 0) {
@@ -381,7 +381,7 @@ async function perform_deletions(database, missing_files, new_files_total) {
 
 	for (let relpath of missing_files) {
 
-		await database.deleteone(relpath);
+		await database.delete_one(relpath);
 		deletions_done++;
 
 		if (deletions_done % DELETION_BATCH_SIZE === 0) {
