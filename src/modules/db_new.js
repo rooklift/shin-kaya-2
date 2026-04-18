@@ -7,6 +7,7 @@ const { list_all_files } = require("./walk_promises");
 const { create_record_from_path } = require("./records");
 
 const fields = ["relpath", "dyer", "movecount", "SZ", "HA", "PB", "PW", "BR", "WR", "RE", "DT", "EV", "RO"];
+const sorted_fields = [...fields].sort();			// Used as a JSON.stringify replacer in save(), to normalise key order on disk.
 const DELETION_BATCH_SIZE = 43;
 const ADDITION_BATCH_SIZE = 47;
 
@@ -229,17 +230,30 @@ const db_prototype = {
 	save: async function() {
 		let dir = path.dirname(this.filepath);
 		let temp_path = path.join(dir, `simpledb-${process.pid}-${Date.now()}.jsonl.tmp`);
+		let records = this.records;
 
-		let parts = [];
-		for (let rec of this.records) {
-			parts.push(JSON.stringify(rec));
-			parts.push("\n");
-		}
-		let content = parts.join("");
 		try {
-			await fs.promises.writeFile(temp_path, content);
+			await new Promise((resolve, reject) => {
+				let stream = fs.createWriteStream(temp_path);
+				let i = 0;
+
+				stream.on("error", reject);
+
+				function write_next() {
+					while (i < records.length) {
+						let line = JSON.stringify(records[i], sorted_fields) + "\n";
+						i++;
+						if (!stream.write(line)) {
+							stream.once("drain", write_next);
+							return;
+						}
+					}
+					stream.end(resolve);					// Fires resolve on "finish", after the OS flush.
+				}
+
+				write_next();
+			});
 			await fs.promises.rename(temp_path, this.filepath);
-			return;
 		} catch (err) {
 			fs.promises.unlink(temp_path).catch(() => {});
 			throw err;
@@ -399,8 +413,8 @@ async function perform_deletions(database, missing_files, new_files_total) {
 
 async function perform_additions(database, archivepath, missing_files_total, new_files) {
 
-	let additions_done = 0;
 	let new_records = [];
+	let additions_done = 0;
 
 	if (new_files.length > 0) {
 		update_import_status(missing_files_total, missing_files_total, 0, new_files.length, "adding");
