@@ -470,10 +470,8 @@ function update_import_status(deletions_done, deletions_total, additions_done, a
 
 function yield_to_gui() {
 	return new Promise(resolve => {
-		if (typeof requestAnimationFrame === "function") {
-			requestAnimationFrame(() => resolve());
-		} else {
+		requestAnimationFrame(() => {
 			setTimeout(resolve, 0);
-		}
+		});
 	});
 }
