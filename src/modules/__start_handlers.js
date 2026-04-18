@@ -25,33 +25,60 @@ document.getElementById("gamesbox").addEventListener("dblclick", (event) => {
 
 document.getElementById("gamesbox").addEventListener("click", (event) => {
 
-	// First clear any highlight that exists...
-
-	let highlighted = document.getElementsByClassName("highlightedgame")[0];
-
-	if (highlighted) {
-		highlighted.className = "";
-	}
-
-	// Now deal with the click...
-
 	let suffix = event_path_string(event, "gamesbox_entry_");
 
 	if (suffix) {
-
 		let n = parseInt(suffix, 10);
-		hub.set_preview_from_index(n);
-
-		// Add the new highlight...
-
-		let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
-		element_to_highlight.className = "highlightedgame";
-
+		set_selected_game(n);
+	} else {
+		set_selected_game(null);
 	}
 });
 
 document.getElementById("preview").addEventListener("dblclick", () => {
 	hub.open_preview_file();
+});
+
+document.addEventListener("keydown", (event) => {
+
+	if (event.altKey || event.ctrlKey || event.metaKey) {
+		return;
+	}
+
+	if (event.target instanceof HTMLInputElement) {
+		return;
+	}
+
+	let delta = null;
+
+	if (event.code === "ArrowUp") {
+		delta = -1;
+	} else if (event.code === "ArrowDown") {
+		delta = 1;
+	} else {
+		return;
+	}
+
+	let highlighted = document.getElementsByClassName("highlightedgame")[0];
+
+	if (!highlighted) {
+		return;
+	}
+
+	let prefix = "gamesbox_entry_";
+
+	if (!highlighted.id.startsWith(prefix)) {
+		return;
+	}
+
+	let n = parseInt(highlighted.id.slice(prefix.length), 10);
+
+	if (Number.isNaN(n)) {
+		return;
+	}
+
+	event.preventDefault();
+	set_selected_game(Math.max(0, Math.min(hub.lookups.length - 1, n + delta)));
 });
 
 for (let element of document.querySelectorAll("input")) {
@@ -86,3 +113,29 @@ ipcRenderer.on("call", (event, msg) => {
 	}
 	fn();
 });
+
+// ------------------------------------------------------------------------------------------------
+
+function set_selected_game(n) {
+
+	// Helper for some of the handlers, above.
+
+	let highlighted = document.getElementsByClassName("highlightedgame")[0];
+
+	if (highlighted) {
+		highlighted.className = "";
+	}
+
+	if (!Number.isInteger(n) || n < 0 || n >= hub.lookups.length) {
+		return;
+	}
+
+	hub.set_preview_from_index(n);
+
+	let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
+
+	if (element_to_highlight) {
+		element_to_highlight.className = "highlightedgame";
+		element_to_highlight.scrollIntoView({block: "nearest"});
+	}
+}
