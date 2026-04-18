@@ -42,9 +42,7 @@ exports.stop_update = function() {
 
 exports.connect = async function() {
 
-	if (work_in_progress) {
-		throw new Error("connect(): work was in progress");
-	}
+	throw_if_busy("connect");
 
 	current_db = null;
 
@@ -62,12 +60,10 @@ exports.connect = async function() {
 };
 
 exports.select = async function(filter) {
-	if (work_in_progress) {
-		throw new Error("select(): work was in progress");
-	}
-	if (!current_db) {
-		throw new Error("select(): no database");
-	}
+
+	throw_if_busy("select");
+	throw_if_no_db("select");
+
 	work_in_progress = true;
 	try {
 		return await current_db.select(filter);
@@ -78,12 +74,8 @@ exports.select = async function(filter) {
 
 exports.update = async function() {
 
-	if (work_in_progress) {
-		return Promise.reject(new Error("update(): Work is in progress."));
-	}
-	if (!current_db) {
-		return Promise.reject(new Error("update(): No database."));
-	}
+	throw_if_busy("update");
+	throw_if_no_db("update");
 
 	work_in_progress = true;
 	abort_flag = false;
@@ -123,7 +115,7 @@ exports.update = async function() {
 
 		await perform_deletions(database, missing_files, new_files.length);
 		let new_records = await perform_additions(database, archivepath, missing_files.length, new_files);
-		throw_if_cannot_continue(database);			// Before we save.
+		throw_if_cannot_continue(database, "update");			// Before we save.
 
 		if (missing_files.length > 0 || new_files.length > 0) {
 			update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length);
@@ -137,12 +129,10 @@ exports.update = async function() {
 };
 
 exports.clear = async function() {
-	if (work_in_progress) {
-		throw new Error("clear(): work in progress");
-	}
-	if (!current_db) {
-		throw new Error("clear(): no database");
-	}
+
+	throw_if_busy("clear");
+	throw_if_no_db("clear");
+
 	work_in_progress = true;
 	try {
 		await current_db.clear();
@@ -152,12 +142,10 @@ exports.clear = async function() {
 };
 
 exports.save = async function() {
-	if (work_in_progress) {
-		throw new Error("save(): work in progress");
-	}
-	if (!current_db) {
-		throw new Error("save(): no database");
-	}
+
+	throw_if_busy("save");
+	throw_if_no_db("save");
+
 	work_in_progress = true;
 	try {
 		await current_db.save();
@@ -397,14 +385,14 @@ async function perform_deletions(database, missing_files, new_files_total) {
 		deletions_done++;
 
 		if (deletions_done % DELETION_BATCH_SIZE === 0) {
-			throw_if_cannot_continue(database);
+			throw_if_cannot_continue(database, "perform_deletions");
 			update_import_status(deletions_done, missing_files.length, 0, new_files_total);
 			await yield_to_gui();
 		}
 	}
 
 	if (deletions_done % DELETION_BATCH_SIZE !== 0) {
-		throw_if_cannot_continue(database);
+		throw_if_cannot_continue(database, "perform_deletions");
 		update_import_status(deletions_done, missing_files.length, 0, new_files_total);
 		await yield_to_gui();
 	}
@@ -433,14 +421,14 @@ async function perform_additions(database, archivepath, missing_files_total, new
 		additions_done++;
 
 		if (additions_done % ADDITION_BATCH_SIZE === 0) {
-			throw_if_cannot_continue(database);
+			throw_if_cannot_continue(database, "perform_additions");
 			update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length);
 			await yield_to_gui();
 		}
 	}
 
 	if (additions_done % ADDITION_BATCH_SIZE !== 0) {
-		throw_if_cannot_continue(database);
+		throw_if_cannot_continue(database, "perform_additions");
 		update_import_status(missing_files_total, missing_files_total, additions_done, new_files.length);
 		await yield_to_gui();
 	}
@@ -448,12 +436,24 @@ async function perform_additions(database, archivepath, missing_files_total, new
 	return new_records;
 }
 
-function throw_if_cannot_continue(database) {
+function throw_if_cannot_continue(database, caller = "some_function") {
 	if (database !== current_db) {
-		throw new Error(`database changed unexpectedly`);
+		throw new Error(`${caller}(): database changed unexpectedly`);
 	}
 	if (abort_flag) {
-		throw new Error(`aborted by user`);
+		throw new Error(`${caller}(): aborted by user`);
+	}
+}
+
+function throw_if_busy(caller = "some_function") {
+	if (work_in_progress) {
+		throw new Error(`${caller}(): work was in progress`);
+	}
+}
+
+function throw_if_no_db(caller = "some_function") {
+	if (!current_db) {
+		throw new Error(`${caller}(): no database`);
 	}
 }
 
