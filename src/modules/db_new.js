@@ -6,8 +6,7 @@ const slashpath = require("./slashpath");
 const { list_all_files } = require("./walk_promises");
 const { create_record_from_path } = require("./records");
 
-const fields = ["relpath", "dyer", "movecount", "SZ", "HA", "PB", "PW", "BR", "WR", "RE", "DT", "EV", "RO"];
-const sorted_fields = [...fields].sort();			// Used as a JSON.stringify replacer in save(), to normalise key order on disk.
+const fields = ["relpath", "PB", "PW", "BR", "WR", "SZ", "HA", "RE", "DT", "EV", "RO", "dyer", "movecount"];
 const DELETION_BATCH_SIZE = 43;
 const ADDITION_BATCH_SIZE = 47;
 
@@ -241,7 +240,7 @@ const db_prototype = {
 
 				function write_next() {
 					while (i < records.length) {
-						let line = JSON.stringify(records[i], sorted_fields) + "\n";
+						let line = JSON.stringify(records[i], fields) + "\n";
 						i++;
 						if (!stream.write(line)) {
 							stream.once("drain", write_next);
