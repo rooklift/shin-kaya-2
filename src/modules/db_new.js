@@ -228,8 +228,7 @@ const db_prototype = {
 
 				function write_next() {
 					while (i < records.length) {
-						let line = JSON.stringify(records[i], fields) + "\n";
-						i++;
+						let line = JSON.stringify(records[i++], fields) + "\n";
 						if (!stream.write(line)) {
 							stream.once("drain", write_next);
 							return;
