@@ -18,8 +18,8 @@ function create_record(root, relpath) {					// root is an SGF node
 		HA:        "0",									// Maybe changed below.
 		PB:        root.get("PB"),
 		PW:        root.get("PW"),
-		BR:        root.get("BR"),
-		WR:        root.get("WR"),
+		BR:        root.get("BR").replace("级", "k").replace("段", "d"),
+		WR:        root.get("WR").replace("级", "k").replace("段", "d"),
 		RE:        canonicalresult(root.get("RE")),
 		DT:        canonicaldate(root.get("DT")),
 		EV:        root.get("EV"),
