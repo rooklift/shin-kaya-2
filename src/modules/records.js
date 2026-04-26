@@ -132,8 +132,10 @@ function sort_records(records) {
 		if (rc !== 0) {
 			return rc;
 		}
-		if (a.PB < b.PB) return -1;
-		if (a.PB > b.PB) return 1;
+		if (a.relpath < b.relpath) return -1;
+		if (a.relpath > b.relpath) return 1;
+		// if (a.PB < b.PB) return -1;					// Pointless now since relpath is sure to be different.
+		// if (a.PB > b.PB) return 1;
 		return 0;
 	});
 }
