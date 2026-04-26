@@ -123,7 +123,7 @@ function set_selected_game(n) {
 	let highlighted = document.getElementsByClassName("highlightedgame")[0];
 
 	if (highlighted) {
-		highlighted.className = "";
+		highlighted.classList.remove("highlightedgame");
 	}
 
 	if (!Number.isInteger(n) || n < 0 || n >= hub.lookups.length) {
@@ -135,7 +135,7 @@ function set_selected_game(n) {
 	let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
 
 	if (element_to_highlight) {
-		element_to_highlight.className = "highlightedgame";
+		element_to_highlight.classList.add("highlightedgame");
 		element_to_highlight.scrollIntoView({block: "nearest"});
 	}
 }

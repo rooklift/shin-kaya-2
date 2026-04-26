@@ -1,7 +1,7 @@
 body {
 	background-color: #ccccccff;
 	color: #000000ff;
-	font-family: monospace, monospace;
+	font-family: ui-monospace, "Cascadia Mono", Consolas, "Noto Sans Mono CJK JP", "Noto Sans Mono CJK SC", "MS Gothic", monospace;
 	width: 100%;
 	height: 100%;
 	margin: 0;
@@ -73,9 +73,30 @@ body {
 	grid-area: gamesbox;
 	margin: 1em;
 	background-color: #f0f0f0ff;
-	white-space: pre;
 	overflow-x: hidden;
 	overflow-y: auto;
+}
+
+.game {
+	display: grid;
+	grid-template-columns: 12ch 7ch 4ch 3ch minmax(16ch, 26ch) 2ch minmax(16ch, 26ch) minmax(20ch, 1fr);
+	column-gap: 1ch;
+	align-items: baseline;
+	white-space: nowrap;
+}
+
+.game > span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.game_movecount {
+	text-align: right;
+}
+
+.game_direction {
+	text-align: center;
 }
 
 input {

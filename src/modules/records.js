@@ -6,7 +6,7 @@ const gogod_name_fixes = require("./gogod_name_fixes");
 const load_sgf = require("./load_sgf");
 const natural_compare = require("./natural_compare");
 const slashpath = require("./slashpath");
-const { replace_all, safe_html, pad_or_slice } = require("./utils");
+const { safe_html } = require("./utils");
 
 function create_record(root, relpath) {					// root is an SGF node
 
@@ -161,36 +161,34 @@ function deduplicate_records(records) {
 
 function span_string(record, element_id) {
 
-	let result_direction = " ? ";
-	if (record.RE.startsWith("B+")) result_direction = " > ";
-	if (record.RE.startsWith("W+")) result_direction = " < ";
+	let result_direction = "?";
+	if (record.RE.startsWith("B+")) result_direction = ">";
+	if (record.RE.startsWith("W+")) result_direction = "<";
 
 	let ha_string = (record.HA >= 2) ? `H${record.HA}` : "";
+	let black_string = `${record.PB} ${record.BR}`.trim();
+	let white_string = `${record.PW} ${record.WR}`.trim();
 
 	let ev_ro_string = record.EV;
 	if (record.RO) {
 		ev_ro_string += ` (${record.RO})`;
 	}
 
-	return `<span id="${element_id}" class="game">` + 				// We want to guarantee the whitespace exists hence all the " "
-		safe_html(
-			pad_or_slice(record.DT, 12) +
-			" " +
-			pad_or_slice(record.RE, 7) +
-			" " +
-			pad_or_slice(record.movecount, 4, true) +
-			"  " +
-			pad_or_slice(ha_string, 3) +
-			" " +
-			pad_or_slice(`${record.PB} ${record.BR}`, 26) +
-			" " +
-			result_direction +
-			" " +
-			pad_or_slice(`${record.PW} ${record.WR}`, 26) +
-			" " +
-			pad_or_slice(ev_ro_string, 128)
-		) +
-		"</span>";
+	return `<div id="${element_id}" class="game">` +
+		cell_string("game_date", record.DT) +
+		cell_string("game_result", record.RE) +
+		cell_string("game_movecount", record.movecount) +
+		cell_string("game_handicap", ha_string) +
+		cell_string("game_black", black_string) +
+		cell_string("game_direction", result_direction) +
+		cell_string("game_white", white_string) +
+		cell_string("game_event", ev_ro_string) +
+		"</div>";
+}
+
+function cell_string(class_name, value) {
+	let html_value = safe_html(value);
+	return `<span class="${class_name}" title="${html_value}">${html_value}</span>`;
 }
 
 
