@@ -165,7 +165,7 @@ exports.reimport = async function(relpath) {
 
 	work_in_progress = true;
 	try {
-		let record = create_record_from_path(config.sgfdir, relpath);
+		let record = create_record_from_path(config.sgfdir, relpath);		// This can throw.
 		let actually_deleted = await current_db.delete_one(relpath);
 		if (!actually_deleted) {
 			throw new Error("reimport(): couldn't find old record");
