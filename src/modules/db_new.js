@@ -154,6 +154,26 @@ exports.save = async function() {
 	}
 };
 
+exports.reimport = async function(relpath) {
+
+	throw_if_busy("reimport");
+	throw_if_no_db("reimport");
+
+	if (typeof relpath !== "string" || relpath === "") {
+		throw new Error("reimport(): invalid relpath");
+	}
+
+	work_in_progress = true;
+	try {
+		let record = create_record_from_path(config.sgfdir, relpath);
+		await current_db.delete_one(relpath);
+		await current_db.add(record);
+		await current_db.save();
+		return record;
+	} finally {
+		work_in_progress = false;
+	}
+};
 
 // ------------------------------------------------------------------------------------------------
 

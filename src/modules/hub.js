@@ -20,7 +20,7 @@ function init() {
 
 	let ret = Object.create(hub_prototype);
 	ret.lookups = [];
-	ret.preview_path = null;
+	ret.selected_relpath = null;
 	ret.preview_request_id = 0;
 	ret.preview_node = new_node();
 
@@ -130,7 +130,7 @@ let hub_main_props = {
 
 		for (let [i, record] of records.entries()) {
 			lines.push(span_string(record, `gamesbox_entry_${i}`));
-			this.lookups.push(slashpath.join(config.sgfdir, record.relpath));
+			this.lookups.push(record.relpath);
 		}
 
 		let count_string = `<span class="bold">${records.length}</span> ${records.length === 1 ? "game" : "games"} shown`;
@@ -174,14 +174,19 @@ let hub_main_props = {
 	},
 
 	reimport_selected_game: function() {
-		// TODO
+		if (db.wip()) {
+			return;
+		}
+		if (this.selected_relpath) {
+			db.reimport(this.selected_relpath);
+		}
 	},
 
-	set_preview_from_path: function(new_preview_path) {
+	set_preview_from_path: function(relpath) {
 
 		// Early aborts...
 
-		if (this.preview_path === new_preview_path) {
+		if (this.selected_relpath === relpath) {
 			return;
 		}
 
@@ -190,10 +195,10 @@ let hub_main_props = {
 
 		let request_id = ++this.preview_request_id;
 
-		if (typeof new_preview_path !== "string") {
+		if (typeof relpath !== "string") {
 			this.preview_node.destroy_tree();
 			this.preview_node = new_node();
-			this.preview_path = null;
+			this.selected_relpath = null;
 			document.getElementById("path").textContent = "\u00a0";
 			set_thumbnail(this.preview_node);
 			return;
@@ -202,9 +207,9 @@ let hub_main_props = {
 		// The main part of this function is async, on the theory that there may be a little lag time when
 		// loading the file, which may feel unresponsive. We use increasing request_id vals to avoid stale updates.
 
-		this.preview_path = new_preview_path;
+		this.selected_relpath = relpath;
 
-		fs.readFile(new_preview_path).then(buf => {					// The read itself could throw.
+		fs.readFile(slashpath.join(config.sgfdir, relpath)).then(buf => {			// The read itself could throw.
 
 			if (request_id !== this.preview_request_id) {
 				return;
@@ -212,7 +217,7 @@ let hub_main_props = {
 
 			let new_root = load_sgf(buf);							// This could throw.
 
-			if (request_id !== this.preview_request_id) {
+			if (request_id !== this.preview_request_id) {		// QUERY / FIXME - we just did this check, why do we do it again?
 				new_root.destroy_tree();
 				return;
 			}
@@ -228,7 +233,7 @@ let hub_main_props = {
 				}
 			}
 
-			document.getElementById("path").textContent = slashpath.relative(config.sgfdir, new_preview_path);
+			document.getElementById("path").textContent = relpath;
 			set_thumbnail(this.preview_node);
 
 		}).catch(err => {											// Reachable from the 2 throw locations, above.
@@ -240,7 +245,7 @@ let hub_main_props = {
 			console.log("While trying to set preview:", err.toString());
 			this.preview_node.destroy_tree();
 			this.preview_node = new_node();
-			this.preview_path = null;
+			this.selected_relpath = null;
 			document.getElementById("path").textContent = "\u00a0";
 			set_thumbnail(this.preview_node);
 		});
@@ -278,14 +283,14 @@ let hub_main_props = {
 
 	open_file_from_index: function(n) {
 		if (typeof n === "number" && !Number.isNaN(n) && n >= 0 && n < this.lookups.length) {
-			let fullpath = this.lookups[n];
-			shell.openPath(fullpath);
+			let relpath = this.lookups[n];
+			shell.openPath(slashpath.join(config.sgfdir, relpath));
 		}
 	},
 
 	open_preview_file: function() {
-		if (this.preview_path) {
-			shell.openPath(this.preview_path);
+		if (this.selected_relpath) {
+			shell.openPath(slashpath.join(config.sgfdir, this.selected_relpath));
 		}
 	},
 
