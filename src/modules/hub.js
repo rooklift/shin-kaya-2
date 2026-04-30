@@ -20,7 +20,7 @@ function init() {
 
 	let ret = Object.create(hub_prototype);
 	ret.lookups = [];
-	ret.selected_relpath = null;
+	ret.index = null;
 	ret.preview_request_id = 0;
 	ret.preview_node = new_node();
 
@@ -52,7 +52,7 @@ let hub_main_props = {
 	},
 
 	update_db: function() {
-		if (db.wip()) {
+		if (this.unable()) {
 			return;
 		}
 		document.getElementById("status").innerHTML = `Updating, this may take some time...`;
@@ -146,7 +146,7 @@ let hub_main_props = {
 		document.getElementById("status").innerHTML = count_string;
 		document.getElementById("gamesbox").innerHTML = lines.join("\n");
 
-		this.set_preview_from_path(null);
+		this.set_selected_game(null);
 	},
 
 	search: function() {
@@ -174,32 +174,45 @@ let hub_main_props = {
 	},
 
 	reimport_selected_game: function() {
-		if (db.wip()) {
+
+		if (this.unable()) {
 			return;
 		}
-		if (this.selected_relpath) {
-			db.reimport(this.selected_relpath);
+		if (!Number.isInteger(this.index) || this.index < 0 || this.index >= this.lookups.length) {
+			return;
 		}
+
+		document.getElementById("status").innerHTML = "Reimporting, please wait...";
+
+		let index = this.index;
+		let relpath = this.lookups[index];
+
+		db.reimport(relpath).then(record => {
+
+			document.getElementById("status").innerHTML = "Reimport done.";
+
+			let element = document.getElementById(`gamesbox_entry_${index}`);
+			if (element) {
+				element.outerHTML = span_string(record, `gamesbox_entry_${index}`);
+
+				if (index === this.index) {
+					document.getElementById(`gamesbox_entry_${index}`).classList.add("highlightedgame");
+				}
+			}
+
+		}).catch((err) => {
+			console.log(err);
+			document.getElementById("status").innerHTML = "Reimport failed.";
+		});
 	},
 
 	set_preview_from_path: function(relpath) {
-
-		// Early aborts...
-
-		if (this.selected_relpath === relpath) {
-			return;
-		}
-
-		// Note: this.preview_request_id is incremented only after the above abort, otherwise
-		// 2 calls in rapid succession to this function (with the same argument) would both fail:
 
 		let request_id = ++this.preview_request_id;
 
 		if (typeof relpath !== "string") {
 			this.preview_node.destroy_tree();
 			this.preview_node = new_node();
-			this.selected_relpath = null;
-			document.getElementById("path").textContent = "\u00a0";
 			set_thumbnail(this.preview_node);
 			return;
 		}
@@ -207,20 +220,13 @@ let hub_main_props = {
 		// The main part of this function is async, on the theory that there may be a little lag time when
 		// loading the file, which may feel unresponsive. We use increasing request_id vals to avoid stale updates.
 
-		this.selected_relpath = relpath;
-
 		fs.readFile(slashpath.join(config.sgfdir, relpath)).then(buf => {			// The read itself could throw.
 
 			if (request_id !== this.preview_request_id) {
 				return;
 			}
 
-			let new_root = load_sgf(buf);							// This could throw.
-
-			if (request_id !== this.preview_request_id) {		// QUERY / FIXME - we just did this check, why do we do it again?
-				new_root.destroy_tree();
-				return;
-			}
+			let new_root = load_sgf(buf);											// This could throw.
 
 			this.preview_node.destroy_tree();
 			this.preview_node = new_root;
@@ -233,10 +239,9 @@ let hub_main_props = {
 				}
 			}
 
-			document.getElementById("path").textContent = relpath;
 			set_thumbnail(this.preview_node);
 
-		}).catch(err => {											// Reachable from the 2 throw locations, above.
+		}).catch(err => {															// Reachable from the 2 throw locations, above.
 
 			if (request_id !== this.preview_request_id) {
 				return;
@@ -245,14 +250,12 @@ let hub_main_props = {
 			console.log("While trying to set preview:", err.toString());
 			this.preview_node.destroy_tree();
 			this.preview_node = new_node();
-			this.selected_relpath = null;
-			document.getElementById("path").textContent = "\u00a0";
 			set_thumbnail(this.preview_node);
 		});
 	},
 
 	set_preview_from_index: function(n) {
-		if (typeof n === "number" && !Number.isNaN(n) && n >= 0 && n < this.lookups.length) {
+		if (Number.isInteger(n) && n >= 0 && n < this.lookups.length) {
 			this.set_preview_from_path(this.lookups[n]);
 		} else {
 			this.set_preview_from_path(null);
@@ -268,10 +271,15 @@ let hub_main_props = {
 		}
 
 		if (!Number.isInteger(n) || n < 0 || n >= this.lookups.length) {
+			this.index = null;
+			this.set_preview_from_path(null);
+			document.getElementById("path").textContent = "\u00a0";
 			return;
 		}
 
+		this.index = n;
 		this.set_preview_from_index(n);
+		document.getElementById("path").textContent = this.lookups[n];
 
 		let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
 
@@ -282,15 +290,15 @@ let hub_main_props = {
 	},
 
 	open_file_from_index: function(n) {
-		if (typeof n === "number" && !Number.isNaN(n) && n >= 0 && n < this.lookups.length) {
+		if (Number.isInteger(n) && n >= 0 && n < this.lookups.length) {
 			let relpath = this.lookups[n];
 			shell.openPath(slashpath.join(config.sgfdir, relpath));
 		}
 	},
 
 	open_preview_file: function() {
-		if (this.selected_relpath) {
-			shell.openPath(slashpath.join(config.sgfdir, this.selected_relpath));
+		if (Number.isInteger(this.index) && this.index >= 0 && this.index < this.lookups.length) {
+			shell.openPath(slashpath.join(config.sgfdir, this.lookups[this.index]));
 		}
 	},
 
