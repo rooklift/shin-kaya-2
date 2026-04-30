@@ -36,7 +36,7 @@ module.exports = {
 				} else {
 					db.connect().then(() => this.display_row_count()).catch(err => {
 						console.log(err);
-						document.getElementById("status").innerHTML = err.toString();
+						this.status_text(err.toString());
 					});
 				}
 				break;

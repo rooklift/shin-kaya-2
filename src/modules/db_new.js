@@ -166,7 +166,10 @@ exports.reimport = async function(relpath) {
 	work_in_progress = true;
 	try {
 		let record = create_record_from_path(config.sgfdir, relpath);
-		await current_db.delete_one(relpath);
+		let actually_deleted = await current_db.delete_one(relpath);
+		if (!actually_deleted) {
+			throw new Error("reimport(): couldn't find old record");
+		}
 		await current_db.add(record);
 		await current_db.save();
 		return record;
@@ -307,7 +310,7 @@ const db_prototype = {
 
 		let n = this.records.length;
 		if (n === 0) {
-			return;
+			return false;
 		}
 		if (this.delete_hint >= n) {
 			this.delete_hint = 0;
@@ -321,10 +324,11 @@ const db_prototype = {
 			}
 		}
 		if (idx < 0) {
-			return;
+			return false;
 		}
 		this.records.splice(idx, 1);
 		this.delete_hint = idx;
+		return true;
 	},
 
 }
@@ -467,7 +471,7 @@ function throw_if_no_db(caller = "some_function") {
 function update_status(msg) {
 	let el = document.getElementById("status");
 	if (el) {
-		el.innerHTML = msg;
+		el.textContent = msg;
 	}
 }
 

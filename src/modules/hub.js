@@ -31,13 +31,21 @@ function init() {
 
 let hub_main_props = {
 
+	status_text: function(msg) {
+		document.getElementById("status").textContent = msg;
+	},
+
+	status_html: function(msg) {
+		document.getElementById("status").innerHTML = msg;
+	},
+
 	quit: function() {
 		config_io.save();					// As long as we use the sync save, this will complete before we
 		ipcRenderer.send("terminate");		// send "terminate". Not sure about results if that wasn't so.
 	},
 
 	display_no_connection: function() {
-		document.getElementById("status").innerHTML = `No database open`;
+		this.status_text(`No database open`);
 	},
 
 	connect_db: function() {
@@ -47,7 +55,7 @@ let hub_main_props = {
 		}
 		db.connect().then(() => this.display_row_count()).catch(err => {
 			console.log(err);
-			document.getElementById("status").innerHTML = err.toString();
+			this.status_text(err.toString());
 		});
 	},
 
@@ -55,15 +63,15 @@ let hub_main_props = {
 		if (this.unable()) {
 			return;
 		}
-		document.getElementById("status").innerHTML = `Updating, this may take some time...`;
+		this.status_text(`Updating, this may take some time...`);
 		db.update().then((o) => {
 			if (o.new_records.length > 0) {
 				this.handle_records(o.new_records);
 			}
-			document.getElementById("status").innerHTML = `Update completed - deletions: ${o.deletions}, additions: ${o.additions}`;
+			this.status_text(`Update completed - deletions: ${o.deletions}, additions: ${o.additions}`);
 		}).catch(err => {
 			console.log(err);
-			document.getElementById("status").innerHTML = err.toString();
+			this.status_text(err.toString());
 		});
 	},
 
@@ -90,10 +98,10 @@ let hub_main_props = {
 			}).catch(err => {
 				console.log(err);
 				db.connect().then(() => {
-					document.getElementById("status").innerHTML = `Reset failed: ${err.toString()}. Reloaded database from disk.`;
+					this.status_text(`Reset failed: ${err.toString()}. Reloaded database from disk.`);
 				}).catch(reload_err => {
 					console.log(reload_err);
-					document.getElementById("status").innerHTML = `Reset failed: ${err.toString()}. Reload also failed: ${reload_err.toString()}`;
+					this.status_text(`Reset failed: ${err.toString()}. Reload also failed: ${reload_err.toString()}`);
 				});
 			});
 		}
@@ -101,7 +109,7 @@ let hub_main_props = {
 
 	display_row_count: function() {
 		if (!this.unable()) {
-			document.getElementById("status").innerHTML = `Database has ${db.count()} entries - ${config.sgfdir}`;
+			this.status_text(`Database has ${db.count()} entries - ${config.sgfdir}`);
 		}
 	},
 
@@ -143,7 +151,7 @@ let hub_main_props = {
 			count_string += `;  too many results (${truncated_from})`;
 		}
 
-		document.getElementById("status").innerHTML = count_string;
+		this.status_html(count_string);
 		document.getElementById("gamesbox").innerHTML = lines.join("\n");
 
 		this.set_selected_game(null);
@@ -182,14 +190,14 @@ let hub_main_props = {
 			return;
 		}
 
-		document.getElementById("status").innerHTML = "Reimporting, please wait...";
+		this.status_text("Reimporting, please wait...");
 
 		let index = this.index;
 		let relpath = this.lookups[index];
 
 		db.reimport(relpath).then(record => {
 
-			document.getElementById("status").innerHTML = "Reimport done.";
+			this.status_text("Reimport done.");
 
 			let element = document.getElementById(`gamesbox_entry_${index}`);
 			if (element) {
@@ -202,7 +210,7 @@ let hub_main_props = {
 
 		}).catch((err) => {
 			console.log(err);
-			document.getElementById("status").innerHTML = "Reimport failed.";
+			this.status_text("Reimport failed.");
 		});
 	},
 
