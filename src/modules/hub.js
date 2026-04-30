@@ -20,7 +20,7 @@ function init() {
 
 	let ret = Object.create(hub_prototype);
 	ret.lookups = [];
-	ret.preview_path = null;
+	ret.index = null;
 	ret.preview_request_id = 0;
 	ret.preview_node = new_node();
 
@@ -52,7 +52,7 @@ let hub_main_props = {
 	},
 
 	update_db: function() {
-		if (db.wip()) {
+		if (this.unable()) {
 			return;
 		}
 		document.getElementById("status").innerHTML = `Updating, this may take some time...`;
@@ -130,7 +130,7 @@ let hub_main_props = {
 
 		for (let [i, record] of records.entries()) {
 			lines.push(span_string(record, `gamesbox_entry_${i}`));
-			this.lookups.push(slashpath.join(config.sgfdir, record.relpath));
+			this.lookups.push(record.relpath);
 		}
 
 		let count_string = `<span class="bold">${records.length}</span> ${records.length === 1 ? "game" : "games"} shown`;
@@ -146,7 +146,7 @@ let hub_main_props = {
 		document.getElementById("status").innerHTML = count_string;
 		document.getElementById("gamesbox").innerHTML = lines.join("\n");
 
-		this.set_preview_from_path(null);
+		this.set_selected_game(null);
 	},
 
 	search: function() {
@@ -173,24 +173,46 @@ let hub_main_props = {
 		db.select(binding).then(records => this.handle_records(records));
 	},
 
-	set_preview_from_path: function(new_preview_path) {
+	reimport_selected_game: function() {
 
-		// Early aborts...
-
-		if (this.preview_path === new_preview_path) {
+		if (this.unable()) {
+			return;
+		}
+		if (!Number.isInteger(this.index) || this.index < 0 || this.index >= this.lookups.length) {
 			return;
 		}
 
-		// Note: this.preview_request_id is incremented only after the above abort, otherwise
-		// 2 calls in rapid succession to this function (with the same argument) would both fail:
+		document.getElementById("status").innerHTML = "Reimporting, please wait...";
+
+		let index = this.index;
+		let relpath = this.lookups[index];
+
+		db.reimport(relpath).then(record => {
+
+			document.getElementById("status").innerHTML = "Reimport done.";
+
+			let element = document.getElementById(`gamesbox_entry_${index}`);
+			if (element) {
+				element.outerHTML = span_string(record, `gamesbox_entry_${index}`);
+
+				if (index === this.index) {
+					document.getElementById(`gamesbox_entry_${index}`).classList.add("highlightedgame");
+				}
+			}
+
+		}).catch((err) => {
+			console.log(err);
+			document.getElementById("status").innerHTML = "Reimport failed.";
+		});
+	},
+
+	set_preview_from_path: function(relpath) {
 
 		let request_id = ++this.preview_request_id;
 
-		if (typeof new_preview_path !== "string") {
+		if (typeof relpath !== "string") {
 			this.preview_node.destroy_tree();
 			this.preview_node = new_node();
-			this.preview_path = null;
-			document.getElementById("path").textContent = "\u00a0";
 			set_thumbnail(this.preview_node);
 			return;
 		}
@@ -198,20 +220,13 @@ let hub_main_props = {
 		// The main part of this function is async, on the theory that there may be a little lag time when
 		// loading the file, which may feel unresponsive. We use increasing request_id vals to avoid stale updates.
 
-		this.preview_path = new_preview_path;
-
-		fs.readFile(new_preview_path).then(buf => {					// The read itself could throw.
+		fs.readFile(slashpath.join(config.sgfdir, relpath)).then(buf => {			// The read itself could throw.
 
 			if (request_id !== this.preview_request_id) {
 				return;
 			}
 
-			let new_root = load_sgf(buf);							// This could throw.
-
-			if (request_id !== this.preview_request_id) {
-				new_root.destroy_tree();
-				return;
-			}
+			let new_root = load_sgf(buf);											// This could throw.
 
 			this.preview_node.destroy_tree();
 			this.preview_node = new_root;
@@ -224,10 +239,9 @@ let hub_main_props = {
 				}
 			}
 
-			document.getElementById("path").textContent = slashpath.relative(config.sgfdir, new_preview_path);
 			set_thumbnail(this.preview_node);
 
-		}).catch(err => {											// Reachable from the 2 throw locations, above.
+		}).catch(err => {															// Reachable from the 2 throw locations, above.
 
 			if (request_id !== this.preview_request_id) {
 				return;
@@ -236,30 +250,55 @@ let hub_main_props = {
 			console.log("While trying to set preview:", err.toString());
 			this.preview_node.destroy_tree();
 			this.preview_node = new_node();
-			this.preview_path = null;
-			document.getElementById("path").textContent = "\u00a0";
 			set_thumbnail(this.preview_node);
 		});
 	},
 
 	set_preview_from_index: function(n) {
-		if (typeof n === "number" && !Number.isNaN(n) && n >= 0 && n < this.lookups.length) {
+		if (Number.isInteger(n) && n >= 0 && n < this.lookups.length) {
 			this.set_preview_from_path(this.lookups[n]);
 		} else {
 			this.set_preview_from_path(null);
 		}
 	},
 
+	set_selected_game: function(n) {
+
+		let highlighted = document.getElementsByClassName("highlightedgame")[0];
+
+		if (highlighted) {
+			highlighted.classList.remove("highlightedgame");
+		}
+
+		if (!Number.isInteger(n) || n < 0 || n >= this.lookups.length) {
+			this.index = null;
+			this.set_preview_from_path(null);
+			document.getElementById("path").textContent = "\u00a0";
+			return;
+		}
+
+		this.index = n;
+		this.set_preview_from_index(n);
+		document.getElementById("path").textContent = this.lookups[n];
+
+		let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
+
+		if (element_to_highlight) {
+			element_to_highlight.classList.add("highlightedgame");
+			element_to_highlight.scrollIntoView({block: "nearest"});
+		}
+	},
+
 	open_file_from_index: function(n) {
-		if (typeof n === "number" && !Number.isNaN(n) && n >= 0 && n < this.lookups.length) {
-			let fullpath = this.lookups[n];
-			shell.openPath(fullpath);
+		if (Number.isInteger(n) && n >= 0 && n < this.lookups.length) {
+			let relpath = this.lookups[n];
+			shell.openPath(slashpath.join(config.sgfdir, relpath));
 		}
 	},
 
 	open_preview_file: function() {
-		if (this.preview_path) {
-			shell.openPath(this.preview_path);
+		if (Number.isInteger(this.index) && this.index >= 0 && this.index < this.lookups.length) {
+			shell.openPath(slashpath.join(config.sgfdir, this.lookups[this.index]));
 		}
 	},
 

@@ -31,3 +31,11 @@ exports.relative = (a, b) => {
 	}
 	return s;
 };
+
+exports.resolve = (...args) => {
+	let s = path.resolve(...args);
+	if (global.process && global.process.platform === "win32") {
+		s = replace_all(s, "\\", "/");
+	}
+	return s;
+};
