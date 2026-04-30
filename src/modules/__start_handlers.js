@@ -29,9 +29,9 @@ document.getElementById("gamesbox").addEventListener("click", (event) => {
 
 	if (suffix) {
 		let n = parseInt(suffix, 10);
-		set_selected_game(n);
+		hub.set_selected_game(n);
 	} else {
-		set_selected_game(null);
+		hub.set_selected_game(null);
 	}
 });
 
@@ -78,7 +78,7 @@ document.addEventListener("keydown", (event) => {
 	}
 
 	event.preventDefault();
-	set_selected_game(Math.max(0, Math.min(hub.lookups.length - 1, n + delta)));
+	hub.set_selected_game(Math.max(0, Math.min(hub.lookups.length - 1, n + delta)));
 });
 
 for (let element of document.querySelectorAll("input")) {
@@ -113,29 +113,3 @@ ipcRenderer.on("call", (event, msg) => {
 	}
 	fn();
 });
-
-// ------------------------------------------------------------------------------------------------
-
-function set_selected_game(n) {
-
-	// Helper for some of the handlers, above.
-
-	let highlighted = document.getElementsByClassName("highlightedgame")[0];
-
-	if (highlighted) {
-		highlighted.classList.remove("highlightedgame");
-	}
-
-	if (!Number.isInteger(n) || n < 0 || n >= hub.lookups.length) {
-		return;
-	}
-
-	hub.set_preview_from_index(n);
-
-	let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
-
-	if (element_to_highlight) {
-		element_to_highlight.classList.add("highlightedgame");
-		element_to_highlight.scrollIntoView({block: "nearest"});
-	}
-}

@@ -222,6 +222,12 @@ function menu_build() {
 					}
 				},
 				{
+					label: "Re-import selected game",
+					click: () => {
+						win.webContents.send("call", "reimport_selected_game");
+					}
+				},
+				{
 					type: "separator",
 				},
 				{

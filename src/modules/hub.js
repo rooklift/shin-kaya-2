@@ -173,6 +173,10 @@ let hub_main_props = {
 		db.select(binding).then(records => this.handle_records(records));
 	},
 
+	reimport_selected_game: function() {
+		// TODO
+	},
+
 	set_preview_from_path: function(new_preview_path) {
 
 		// Early aborts...
@@ -247,6 +251,28 @@ let hub_main_props = {
 			this.set_preview_from_path(this.lookups[n]);
 		} else {
 			this.set_preview_from_path(null);
+		}
+	},
+
+	set_selected_game: function(n) {
+
+		let highlighted = document.getElementsByClassName("highlightedgame")[0];
+
+		if (highlighted) {
+			highlighted.classList.remove("highlightedgame");
+		}
+
+		if (!Number.isInteger(n) || n < 0 || n >= this.lookups.length) {
+			return;
+		}
+
+		this.set_preview_from_index(n);
+
+		let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
+
+		if (element_to_highlight) {
+			element_to_highlight.classList.add("highlightedgame");
+			element_to_highlight.scrollIntoView({block: "nearest"});
 		}
 	},
 
