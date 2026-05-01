@@ -85,7 +85,6 @@ body {
 	column-gap: 1ch;
 	align-items: baseline;
 	white-space: nowrap;
-	transition: background-color 100ms ease-in-out;
 }
 
 .game > span {
