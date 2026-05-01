@@ -85,6 +85,8 @@ body {
 	column-gap: 1ch;
 	align-items: baseline;
 	white-space: nowrap;
+	background-color: transparent;
+	transition: background-color 100ms ease-out;
 }
 
 .game > span {
@@ -122,6 +124,7 @@ input:focus {
 
 .highlightedgame {
 	background-color: #ffffffff;
+	transition-duration: 0ms;
 }
 
 .bold {
