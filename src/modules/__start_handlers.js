@@ -72,7 +72,7 @@ document.addEventListener("keydown", (event) => {
 	}
 
 	event.preventDefault();
-	hub.set_selected_game(Math.max(0, Math.min(hub.lookups.length - 1, hub.index + delta)));
+	hub.set_selected_game(Math.max(0, Math.min(hub.displayed_records.length - 1, hub.index + delta)));
 });
 
 for (let element of document.querySelectorAll("input")) {

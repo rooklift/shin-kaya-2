@@ -22,7 +22,6 @@ function init() {
 	Object.assign(hub_prototype, require("./hub_settings"));
 
 	let ret = Object.create(hub_prototype);
-	ret.lookups = [];
 	ret.displayed_records = [];
 	ret.index = null;
 	ret.preview_request_id = 0;
@@ -130,8 +129,6 @@ let hub_main_props = {
 			records = records.slice(0, 2000);
 		}
 
-		this.lookups = [];
-
 		let dedup_count = 0;
 
 		if (config.deduplicate) {
@@ -143,7 +140,6 @@ let hub_main_props = {
 		sort_records(records);		// After the above deduplication, which also has an in-place sort during the process.
 
 		this.displayed_records = records;
-		this.lookups = records.map(record => record.relpath);
 
 		let count_string = `<span class="bold">${records.length}</span> ${records.length === 1 ? "game" : "games"} shown`;
 
@@ -159,6 +155,13 @@ let hub_main_props = {
 		this.mount_gamesbox();
 
 		this.set_selected_game(null);
+	},
+
+	record_at: function(n) {
+		if (Number.isInteger(n) && n >= 0 && n < this.displayed_records.length) {
+			return this.displayed_records[n];
+		}
+		return null;
 	},
 
 	mount_gamesbox: function() {
@@ -291,14 +294,15 @@ let hub_main_props = {
 		if (this.unable()) {
 			return;
 		}
-		if (!Number.isInteger(this.index) || this.index < 0 || this.index >= this.lookups.length) {
+		let selected_record = this.record_at(this.index);
+		if (!selected_record) {
 			return;
 		}
 
 		this.status_text("Reimporting, please wait...");
 
 		let index = this.index;
-		let relpath = this.lookups[index];
+		let relpath = selected_record.relpath;
 
 		db.reimport(relpath).then(record => {
 
@@ -372,8 +376,9 @@ let hub_main_props = {
 	},
 
 	set_preview_from_index: function(n) {
-		if (Number.isInteger(n) && n >= 0 && n < this.lookups.length) {
-			this.set_preview_from_path(this.lookups[n]);
+		let record = this.record_at(n);
+		if (record) {
+			this.set_preview_from_path(record.relpath);
 		} else {
 			this.set_preview_from_path(null);
 		}
@@ -387,7 +392,8 @@ let hub_main_props = {
 			highlighted.classList.remove("highlightedgame");
 		}
 
-		if (!Number.isInteger(n) || n < 0 || n >= this.lookups.length) {
+		let record = this.record_at(n);
+		if (!record) {
 			this.index = null;
 			this.set_preview_from_path(null);
 			document.getElementById("path").textContent = "\u00a0";
@@ -396,7 +402,7 @@ let hub_main_props = {
 
 		this.index = n;
 		this.set_preview_from_index(n);
-		document.getElementById("path").textContent = this.lookups[n];
+		document.getElementById("path").textContent = record.relpath;
 		this.scroll_game_into_view(n);
 		this.render_visible_games(false);
 
@@ -408,15 +414,16 @@ let hub_main_props = {
 	},
 
 	open_file_from_index: function(n) {
-		if (Number.isInteger(n) && n >= 0 && n < this.lookups.length) {
-			let relpath = this.lookups[n];
-			shell.openPath(slashpath.join(config.sgfdir, relpath));
+		let record = this.record_at(n);
+		if (record) {
+			shell.openPath(slashpath.join(config.sgfdir, record.relpath));
 		}
 	},
 
 	open_preview_file: function() {
-		if (Number.isInteger(this.index) && this.index >= 0 && this.index < this.lookups.length) {
-			shell.openPath(slashpath.join(config.sgfdir, this.lookups[this.index]));
+		let record = this.record_at(this.index);
+		if (record) {
+			shell.openPath(slashpath.join(config.sgfdir, record.relpath));
 		}
 	},
 
