@@ -12,6 +12,9 @@ const slashpath = require("./slashpath");
 const { new_board } = require("./board");
 const { sort_records, deduplicate_records, span_string } = require("./records");
 
+const GAME_ROW_OVERSCAN = 16;
+const DEFAULT_GAME_ROW_HEIGHT = 20;
+
 function init() {
 
 	let hub_prototype = {};
@@ -20,9 +23,14 @@ function init() {
 
 	let ret = Object.create(hub_prototype);
 	ret.lookups = [];
+	ret.displayed_records = [];
 	ret.index = null;
 	ret.preview_request_id = 0;
 	ret.preview_node = new_node();
+	ret.game_row_height = null;
+	ret.rendered_first_game = null;
+	ret.rendered_after_game = null;
+	ret.render_animation_frame = null;
 
 	set_thumbnail(ret.preview_node);
 
@@ -134,12 +142,8 @@ let hub_main_props = {
 
 		sort_records(records);		// After the above deduplication, which also has an in-place sort during the process.
 
-		let lines = [];
-
-		for (let [i, record] of records.entries()) {
-			lines.push(span_string(record, `gamesbox_entry_${i}`));
-			this.lookups.push(record.relpath);
-		}
+		this.displayed_records = records;
+		this.lookups = records.map(record => record.relpath);
 
 		let count_string = `<span class="bold">${records.length}</span> ${records.length === 1 ? "game" : "games"} shown`;
 
@@ -152,9 +156,110 @@ let hub_main_props = {
 		}
 
 		this.status_html(count_string);
-		document.getElementById("gamesbox").innerHTML = lines.join("\n");
+		this.mount_gamesbox();
 
 		this.set_selected_game(null);
+	},
+
+	mount_gamesbox: function() {
+		let gamesbox = document.getElementById("gamesbox");
+		gamesbox.scrollTop = 0;
+		gamesbox.innerHTML = '<div id="gamesbox_top_spacer"></div><div id="gamesbox_rows"></div><div id="gamesbox_bottom_spacer"></div>';
+		this.rendered_first_game = null;
+		this.rendered_after_game = null;
+		this.render_visible_games(true);
+	},
+
+	schedule_render_visible_games: function() {
+		if (this.render_animation_frame !== null) {
+			return;
+		}
+		this.render_animation_frame = requestAnimationFrame(() => {
+			this.render_animation_frame = null;
+			this.render_visible_games(false);
+		});
+	},
+
+	render_visible_games: function(force) {
+		let records = this.displayed_records;
+		let gamesbox = document.getElementById("gamesbox");
+		let top_spacer = document.getElementById("gamesbox_top_spacer");
+		let rows = document.getElementById("gamesbox_rows");
+		let bottom_spacer = document.getElementById("gamesbox_bottom_spacer");
+
+		if (!records || !top_spacer || !rows || !bottom_spacer) {
+			return;
+		}
+
+		let row_height = this.get_game_row_height();
+		let first = Math.max(0, Math.floor(gamesbox.scrollTop / row_height) - GAME_ROW_OVERSCAN);
+		let after = Math.min(records.length, Math.ceil((gamesbox.scrollTop + gamesbox.clientHeight) / row_height) + GAME_ROW_OVERSCAN);
+
+		if (!force && first === this.rendered_first_game && after === this.rendered_after_game) {
+			return;
+		}
+
+		let lines = [];
+		for (let i = first; i < after; i++) {
+			lines.push(span_string(records[i], `gamesbox_entry_${i}`));
+		}
+
+		top_spacer.style.height = `${first * row_height}px`;
+		bottom_spacer.style.height = `${(records.length - after) * row_height}px`;
+		rows.innerHTML = lines.join("\n");
+
+		this.rendered_first_game = first;
+		this.rendered_after_game = after;
+
+		let measured_row = rows.firstElementChild;
+		if (measured_row) {
+			let measured_height = measured_row.getBoundingClientRect().height;
+			if (measured_height > 0 && Math.abs(measured_height - row_height) > 0.5) {
+				this.game_row_height = measured_height;
+				this.rendered_first_game = null;
+				this.render_visible_games(true);
+				return;
+			}
+		}
+
+		if (Number.isInteger(this.index) && this.index >= first && this.index < after) {
+			let highlighted = document.getElementById(`gamesbox_entry_${this.index}`);
+			if (highlighted) {
+				highlighted.classList.add("highlightedgame");
+			}
+		}
+	},
+
+	get_game_row_height: function() {
+		if (this.game_row_height) {
+			return this.game_row_height;
+		}
+
+		let row = document.querySelector("#gamesbox_rows .game");
+		if (row) {
+			let height = row.getBoundingClientRect().height;
+			if (height > 0) {
+				this.game_row_height = height;
+				return height;
+			}
+		}
+
+		return DEFAULT_GAME_ROW_HEIGHT;
+	},
+
+	scroll_game_into_view: function(n) {
+		let gamesbox = document.getElementById("gamesbox");
+		let row_height = this.get_game_row_height();
+		let row_top = n * row_height;
+		let row_bottom = row_top + row_height;
+		let view_top = gamesbox.scrollTop;
+		let view_bottom = view_top + gamesbox.clientHeight;
+
+		if (row_top < view_top) {
+			gamesbox.scrollTop = row_top;
+		} else if (row_bottom > view_bottom) {
+			gamesbox.scrollTop = row_bottom - gamesbox.clientHeight;
+		}
 	},
 
 	search: function() {
@@ -200,12 +305,16 @@ let hub_main_props = {
 			this.status_text("Reimport done.");
 
 			let element = document.getElementById(`gamesbox_entry_${index}`);
+			this.displayed_records[index] = record;
+
 			if (element) {
 				element.outerHTML = span_string(record, `gamesbox_entry_${index}`);
 
 				if (index === this.index) {
 					document.getElementById(`gamesbox_entry_${index}`).classList.add("highlightedgame");
 				}
+			} else {
+				this.render_visible_games(true);
 			}
 
 		}).catch((err) => {
@@ -288,12 +397,13 @@ let hub_main_props = {
 		this.index = n;
 		this.set_preview_from_index(n);
 		document.getElementById("path").textContent = this.lookups[n];
+		this.scroll_game_into_view(n);
+		this.render_visible_games(false);
 
 		let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
 
 		if (element_to_highlight) {
 			element_to_highlight.classList.add("highlightedgame");
-			element_to_highlight.scrollIntoView({block: "nearest"});
 		}
 	},
 

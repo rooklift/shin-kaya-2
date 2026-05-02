@@ -23,6 +23,14 @@ document.getElementById("gamesbox").addEventListener("dblclick", (event) => {
 	}
 });
 
+document.getElementById("gamesbox").addEventListener("scroll", () => {
+	hub.schedule_render_visible_games();
+});
+
+window.addEventListener("resize", () => {
+	hub.schedule_render_visible_games();
+});
+
 document.getElementById("gamesbox").addEventListener("click", (event) => {
 
 	let suffix = event_path_string(event, "gamesbox_entry_");
@@ -59,26 +67,12 @@ document.addEventListener("keydown", (event) => {
 		return;
 	}
 
-	let highlighted = document.getElementsByClassName("highlightedgame")[0];
-
-	if (!highlighted) {
-		return;
-	}
-
-	let prefix = "gamesbox_entry_";
-
-	if (!highlighted.id.startsWith(prefix)) {
-		return;
-	}
-
-	let n = parseInt(highlighted.id.slice(prefix.length), 10);
-
-	if (Number.isNaN(n)) {
+	if (!Number.isInteger(hub.index)) {
 		return;
 	}
 
 	event.preventDefault();
-	hub.set_selected_game(Math.max(0, Math.min(hub.lookups.length - 1, n + delta)));
+	hub.set_selected_game(Math.max(0, Math.min(hub.lookups.length - 1, hub.index + delta)));
 });
 
 for (let element of document.querySelectorAll("input")) {
