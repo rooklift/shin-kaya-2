@@ -20,7 +20,9 @@ function init() {
 
 	let ret = Object.create(hub_prototype);
 	ret.lookups = [];
+	ret.records = [];
 	ret.index = null;
+	ret.row_height = 0;
 	ret.preview_request_id = 0;
 	ret.preview_node = new_node();
 
@@ -122,8 +124,6 @@ let hub_main_props = {
 			records = records.slice(0, 2000);
 		}
 
-		this.lookups = [];
-
 		let dedup_count = 0;
 
 		if (config.deduplicate) {
@@ -134,12 +134,8 @@ let hub_main_props = {
 
 		sort_records(records);		// After the above deduplication, which also has an in-place sort during the process.
 
-		let lines = [];
-
-		for (let [i, record] of records.entries()) {
-			lines.push(span_string(record, `gamesbox_entry_${i}`));
-			this.lookups.push(record.relpath);
-		}
+		this.records = records;
+		this.lookups = records.map(r => r.relpath);
 
 		let count_string = `<span class="bold">${records.length}</span> ${records.length === 1 ? "game" : "games"} shown`;
 
@@ -152,9 +148,72 @@ let hub_main_props = {
 		}
 
 		this.status_html(count_string);
-		document.getElementById("gamesbox").innerHTML = lines.join("\n");
 
-		this.set_selected_game(null);
+		this.ensure_row_height();
+
+		let gamesbox = document.getElementById("gamesbox");
+		gamesbox.scrollTop = 0;
+		let total_height = records.length * this.row_height;
+		gamesbox.innerHTML = `<div id="games_inner" style="height:${total_height}px"></div>`;
+
+		this.index = null;
+		this.set_preview_from_path(null);
+		document.getElementById("path").textContent = " ";
+
+		this.render_visible();
+	},
+
+	ensure_row_height: function() {
+		if (this.row_height > 0) {
+			return;
+		}
+		let gamesbox = document.getElementById("gamesbox");
+		let test = document.createElement("div");
+		test.className = "game";
+		test.style.visibility = "hidden";
+		test.style.position = "static";
+		test.innerHTML = `<span class="game_date">2024-01-01</span><span class="game_result">B+R</span><span class="game_movecount">100</span><span class="game_handicap">H9</span><span class="game_black">M</span><span class="game_direction">?</span><span class="game_white">M</span><span class="game_event">M</span>`;
+		gamesbox.appendChild(test);
+		let h = test.getBoundingClientRect().height;
+		test.remove();
+		this.row_height = h > 0 ? h : 22;
+
+		let style_el = document.createElement("style");
+		style_el.textContent = `.game { height: ${this.row_height}px; line-height: ${this.row_height}px; }`;
+		document.head.appendChild(style_el);
+	},
+
+	render_visible: function() {
+		let inner = document.getElementById("games_inner");
+		if (!inner) {
+			return;
+		}
+		if (this.records.length === 0) {
+			inner.innerHTML = "";
+			return;
+		}
+
+		let gamesbox = document.getElementById("gamesbox");
+		let row_h = this.row_height;
+		let scroll_top = gamesbox.scrollTop;
+		let viewport = gamesbox.clientHeight;
+		let buffer = 10;
+
+		let first = Math.max(0, Math.floor(scroll_top / row_h) - buffer);
+		let last = Math.min(this.records.length - 1, Math.ceil((scroll_top + viewport) / row_h) + buffer);
+
+		let parts = [];
+		for (let i = first; i <= last; i++) {
+			parts.push(span_string(this.records[i], `gamesbox_entry_${i}`, i * row_h));
+		}
+		inner.innerHTML = parts.join("");
+
+		if (Number.isInteger(this.index) && this.index >= first && this.index <= last) {
+			let el = document.getElementById(`gamesbox_entry_${this.index}`);
+			if (el) {
+				el.classList.add("highlightedgame");
+			}
+		}
 	},
 
 	search: function() {
@@ -199,13 +258,9 @@ let hub_main_props = {
 
 			this.status_text("Reimport done.");
 
-			let element = document.getElementById(`gamesbox_entry_${index}`);
-			if (element) {
-				element.outerHTML = span_string(record, `gamesbox_entry_${index}`);
-
-				if (index === this.index) {
-					document.getElementById(`gamesbox_entry_${index}`).classList.add("highlightedgame");
-				}
+			if (index < this.records.length && this.records[index].relpath === relpath) {
+				this.records[index] = record;
+				this.render_visible();
 			}
 
 		}).catch((err) => {
@@ -289,12 +344,18 @@ let hub_main_props = {
 		this.set_preview_from_index(n);
 		document.getElementById("path").textContent = this.lookups[n];
 
-		let element_to_highlight = document.getElementById(`gamesbox_entry_${n}`);
+		let gamesbox = document.getElementById("gamesbox");
+		let row_h = this.row_height;
+		let target_top = n * row_h;
+		let target_bottom = target_top + row_h;
 
-		if (element_to_highlight) {
-			element_to_highlight.classList.add("highlightedgame");
-			element_to_highlight.scrollIntoView({block: "nearest"});
+		if (target_top < gamesbox.scrollTop) {
+			gamesbox.scrollTop = target_top;
+		} else if (target_bottom > gamesbox.scrollTop + gamesbox.clientHeight) {
+			gamesbox.scrollTop = target_bottom - gamesbox.clientHeight;
 		}
+
+		this.render_visible();
 	},
 
 	open_file_from_index: function(n) {

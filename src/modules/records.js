@@ -159,7 +159,7 @@ function deduplicate_records(records) {
 	}
 }
 
-function span_string(record, element_id) {
+function span_string(record, element_id, top) {
 
 	let result_direction = "?";
 	if (record.RE.startsWith("B+")) result_direction = ">";
@@ -174,7 +174,9 @@ function span_string(record, element_id) {
 		ev_ro_string += ` (${record.RO})`;
 	}
 
-	return `<div id="${element_id}" class="game">` +
+	let style_attr = (typeof top === "number") ? ` style="top:${top}px"` : "";
+
+	return `<div id="${element_id}" class="game"${style_attr}>` +
 		cell_string("game_date", record.DT) +
 		cell_string("game_result", record.RE) +
 		cell_string("game_movecount", record.movecount) +

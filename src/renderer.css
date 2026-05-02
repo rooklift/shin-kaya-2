@@ -79,7 +79,15 @@ body {
 	overflow-y: auto;
 }
 
+#games_inner {
+	position: relative;
+	width: 100%;
+}
+
 .game {
+	position: absolute;
+	left: 0;
+	right: 0;
 	display: grid;
 	grid-template-columns: 12ch 7ch 4ch 3ch minmax(16ch, 26ch) 2ch minmax(16ch, 26ch) minmax(20ch, 1fr);
 	column-gap: 1ch;
