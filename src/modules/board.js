@@ -2,8 +2,6 @@
 
 // Very modified from Ogatak. Doesn't contain stuff we don't need, like ko handling, etc.
 
-const fs = require("fs");
-const load_sgf = require("./load_sgf");
 const { xy_to_s, points_list } = require("./utils");
 
 function new_board(width, height, state = null) {

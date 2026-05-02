@@ -1,7 +1,6 @@
 "use strict";
 
 const stringify = require("./stringify");
-const { replace_all } = require("./utils");
 
 // ------------------------------------------------------------------------------------------------
 
@@ -24,7 +23,7 @@ function new_node(parent) {
 		node.__root = parent.__root;			// Usually don't access this directly, call get_root() so that bugs will show up if it's not valid.
 		node.depth = parent.depth + 1;
 
-	}	
+	}
 
 	return node;
 }
@@ -146,7 +145,7 @@ let node_prototype = {
 	destroy_tree: function() {
 		destroy_tree_recursive(this.get_root());
 	},
-	
+
 };
 
 // ------------------------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 const fs = require("fs/promises");
 const slashpath = require("./slashpath");
-const { replace_all, ends_with_any } = require("./utils");
+const { ends_with_any } = require("./utils");
 
 const skippable_ends = [".db", ".db-shm", ".db-wal", "journal"];
 
