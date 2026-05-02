@@ -85,8 +85,10 @@ body {
 	grid-template-columns: 12ch 7ch 4ch 3ch minmax(16ch, 26ch) 2ch minmax(16ch, 26ch) minmax(20ch, 1fr);
 	column-gap: 1ch;
 	align-items: baseline;
-	min-height: 1.25em;
+	height: 1.25em;
 	line-height: 1.25em;
+	overflow: hidden;
+	box-sizing: border-box;
 	white-space: nowrap;
 	background-color: transparent;
 	transition: background-color 100ms ease-out;
