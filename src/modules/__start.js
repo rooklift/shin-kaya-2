@@ -12,7 +12,7 @@ global.alert = (msg) => {
 };
 
 global.hub = require("./hub");
-hub.set_preview_from_index(null);
+hub.set_preview();
 
 require("./__start_handlers");
 require("./__start_spinners");

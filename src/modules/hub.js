@@ -327,11 +327,12 @@ let hub_main_props = {
 		});
 	},
 
-	set_preview_from_path: function(relpath) {
+	set_preview: function() {
 
 		let request_id = ++this.preview_request_id;
 
-		if (typeof relpath !== "string") {
+		let record = this.record_at(this.index);
+		if (!record) {
 			this.preview_node.destroy_tree();
 			this.preview_node = new_node();
 			set_thumbnail(this.preview_node);
@@ -341,7 +342,7 @@ let hub_main_props = {
 		// The main part of this function is async, on the theory that there may be a little lag time when
 		// loading the file, which may feel unresponsive. We use increasing request_id vals to avoid stale updates.
 
-		fs.readFile(slashpath.join(config.sgfdir, relpath)).then(buf => {			// The read itself could throw.
+		fs.readFile(slashpath.join(config.sgfdir, record.relpath)).then(buf => {	// The read itself could throw.
 
 			if (request_id !== this.preview_request_id) {
 				return;
@@ -375,15 +376,6 @@ let hub_main_props = {
 		});
 	},
 
-	set_preview_from_index: function(n) {
-		let record = this.record_at(n);
-		if (record) {
-			this.set_preview_from_path(record.relpath);
-		} else {
-			this.set_preview_from_path(null);
-		}
-	},
-
 	set_selected_game: function(n) {
 
 		let highlighted = document.getElementsByClassName("highlightedgame")[0];
@@ -395,13 +387,13 @@ let hub_main_props = {
 		let record = this.record_at(n);
 		if (!record) {
 			this.index = null;
-			this.set_preview_from_path(null);
+			this.set_preview();
 			document.getElementById("path").textContent = "\u00a0";
 			return;
 		}
 
 		this.index = n;
-		this.set_preview_from_index(n);
+		this.set_preview();
 		document.getElementById("path").textContent = record.relpath;
 		this.scroll_game_into_view(n);
 		this.render_visible_games(false);
