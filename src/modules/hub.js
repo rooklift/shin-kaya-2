@@ -38,17 +38,36 @@ function init() {
 
 let hub_main_props = {
 
+	quit: function() {
+		config_io.save();					// As long as we use the sync save, this will complete before we
+		ipcRenderer.send("terminate");		// send "terminate". Not sure about results if that wasn't so.
+	},
+
+	unable: function() {
+		if (db.wip()) {
+			alert("Unable. Work is in progress.");
+			return true;
+		}
+		if (!db.connected()) {
+			this.display_no_connection();
+			return true;
+		}
+		return false;
+	},
+
+	record_at: function(n) {
+		if (Number.isInteger(n) && n >= 0 && n < this.displayed_records.length) {
+			return this.displayed_records[n];
+		}
+		return null;
+	},
+
 	status_text: function(msg) {
 		document.getElementById("status").textContent = msg;
 	},
 
 	status_html: function(msg) {
 		document.getElementById("status").innerHTML = msg;
-	},
-
-	quit: function() {
-		config_io.save();					// As long as we use the sync save, this will complete before we
-		ipcRenderer.send("terminate");		// send "terminate". Not sure about results if that wasn't so.
 	},
 
 	display_no_connection: function() {
@@ -84,18 +103,6 @@ let hub_main_props = {
 
 	stop_update: function() {
 		db.stop_update();
-	},
-
-	unable: function() {
-		if (db.wip()) {
-			alert("Unable. Work is in progress.");
-			return true;
-		}
-		if (!db.connected()) {
-			this.display_no_connection();
-			return true;
-		}
-		return false;
 	},
 
 	reset_db: function() {
@@ -155,13 +162,6 @@ let hub_main_props = {
 		this.mount_gamesbox();
 
 		this.set_selected_game(null);
-	},
-
-	record_at: function(n) {
-		if (Number.isInteger(n) && n >= 0 && n < this.displayed_records.length) {
-			return this.displayed_records[n];
-		}
-		return null;
 	},
 
 	mount_gamesbox: function() {
