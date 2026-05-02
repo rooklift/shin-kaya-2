@@ -130,6 +130,15 @@ function startup() {
 
 function menu_build() {
 
+	const preview_depth_items = [0, 10, 20, 30, 40, 50, 60, 999].map(depth => ({
+		label: depth.toString(),
+		type: "checkbox",
+		checked: config.preview_depth === depth,
+		click: () => {
+			win.webContents.send("set", {preview_depth: depth});
+		}
+	}));
+
 	const template = [
 		{
 			label: "App",
@@ -266,72 +275,7 @@ function menu_build() {
 				},
 				{
 					label: "Preview depth (initial)",
-					submenu: [
-						{
-							label: "0",
-							type: "checkbox",
-							checked: config.preview_depth === 0,
-							click: () => {
-								win.webContents.send("set", {preview_depth: 0});
-							}
-						},
-						{
-							label: "10",
-							type: "checkbox",
-							checked: config.preview_depth === 10,
-							click: () => {
-								win.webContents.send("set", {preview_depth: 10});
-							}
-						},
-						{
-							label: "20",
-							type: "checkbox",
-							checked: config.preview_depth === 20,
-							click: () => {
-								win.webContents.send("set", {preview_depth: 20});
-							}
-						},
-						{
-							label: "30",
-							type: "checkbox",
-							checked: config.preview_depth === 30,
-							click: () => {
-								win.webContents.send("set", {preview_depth: 30});
-							}
-						},
-						{
-							label: "40",
-							type: "checkbox",
-							checked: config.preview_depth === 40,
-							click: () => {
-								win.webContents.send("set", {preview_depth: 40});
-							}
-						},
-						{
-							label: "50",
-							type: "checkbox",
-							checked: config.preview_depth === 50,
-							click: () => {
-								win.webContents.send("set", {preview_depth: 50});
-							}
-						},
-						{
-							label: "60",
-							type: "checkbox",
-							checked: config.preview_depth === 60,
-							click: () => {
-								win.webContents.send("set", {preview_depth: 60});
-							}
-						},
-						{
-							label: "999",
-							type: "checkbox",
-							checked: config.preview_depth === 999,
-							click: () => {
-								win.webContents.send("set", {preview_depth: 999});
-							}
-						},
-					]
+					submenu: preview_depth_items
 				},
 				{
 					label: "Preview back",
@@ -410,7 +354,7 @@ function set_one_check(desired_state, menupath) {
 	let item = get_submenu_items(menupath);
 
 	if (item.checked !== undefined) {
-		item.checked = desired_state ? true : false;
+		item.checked = Boolean(desired_state);
 	}
 }
 

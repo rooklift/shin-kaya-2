@@ -25,6 +25,10 @@ module.exports = function(...args) {							// Can be called as  (msg)  or as  (w
 	}
 
 	alerts_open++;
+	let options = {message: stringify(msg), title: "Alert", buttons: ["OK"]};
+	let done = () => {
+		alerts_open--;
+	};
 
 	if (major_version <= 5) {
 
@@ -32,27 +36,16 @@ module.exports = function(...args) {							// Can be called as  (msg)  or as  (w
 		// This is all rather untested.
 
 		if (win) {
-			electron.dialog.showMessageBox(win, {message: stringify(msg), title: "Alert", buttons: ["OK"]}, () => {
-				alerts_open--;
-			});
+			electron.dialog.showMessageBox(win, options, done);
 		} else {
-			electron.dialog.showMessageBox({message: stringify(msg), title: "Alert", buttons: ["OK"]}, () => {
-				alerts_open--;
-			});
+			electron.dialog.showMessageBox(options, done);
 		}
 
 	} else {
 
 		// New promise-based API. Shouldn't block the process...
 
-		if (win) {
-			electron.dialog.showMessageBox(win, {message: stringify(msg), title: "Alert", buttons: ["OK"]}).then(() => {
-				alerts_open--;
-			});
-		} else {
-			electron.dialog.showMessageBox({message: stringify(msg), title: "Alert", buttons: ["OK"]}).then(() => {
-				alerts_open--;
-			});
-		}
+		let promise = win ? electron.dialog.showMessageBox(win, options) : electron.dialog.showMessageBox(options);
+		promise.then(done);
 	}
 };

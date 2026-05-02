@@ -1,7 +1,6 @@
 "use strict";
 
 const stringify = require("./stringify");
-const { replace_all } = require("./utils");
 
 // ------------------------------------------------------------------------------------------------
 
@@ -61,14 +60,10 @@ let node_prototype = {
 	},
 
 	all_values: function(key) {
-		let ret = [];
 		if (!this.has_key(key)) {
-			return ret;
+			return [];
 		}
-		for (let value of this.props[key]) {
-			ret.push(value);
-		}
-		return ret;
+		return this.props[key].slice();
 	},
 
 	get_root: function() {

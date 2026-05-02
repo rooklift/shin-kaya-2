@@ -179,9 +179,7 @@ function convert_buf(buf, source_encoding) {
 	// Converts a buffer from some encoding to a UTF-8 encoded buffer.
 
 	let decoder = decoders.get_decoder(source_encoding);		// This can throw if source_encoding is not supported.
-	let s = decoder.decode(buf);
-	let ret = Buffer.from(s, "UTF-8");
-	return ret;
+	return Buffer.from(decoder.decode(buf), "UTF-8");
 }
 
 

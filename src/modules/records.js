@@ -74,18 +74,12 @@ function create_record_from_path(archivepath, relpath) {				// Can throw
 
 function canonicaldate(DT) {
 
-	let m;
+	for (let pattern of [/\d\d\d\d-\d\d-\d\d/g, /\d\d\d\d-\d\d/g, /\d\d\d\d/g]) {
+		let m = DT.match(pattern);
+		if (m && m.length > 0) return m[0];
+	}
 
-	m = DT.match(/\d\d\d\d-\d\d-\d\d/g);
-	if (m && m.length > 0) return m[0];
-
-	m = DT.match(/\d\d\d\d-\d\d/g);
-	if (m && m.length > 0) return m[0];
-
-	m = DT.match(/\d\d\d\d/g);
-	if (m && m.length > 0) return m[0];
-
-	m = DT.match(/\d\d\d/g);
+	let m = DT.match(/\d\d\d/g);
 	if (m && m.length > 0) return "0" + m[0];
 
 	return "";
@@ -95,35 +89,31 @@ function canonicalresult(RE) {
 
 	RE = RE.trim().toUpperCase();
 
-	if (RE.startsWith("B+R")) return "B+R";
-	if (RE.startsWith("W+R")) return "W+R";
-	if (RE.startsWith("B+T")) return "B+T";
-	if (RE.startsWith("W+T")) return "W+T";
-	if (RE.startsWith("B+F")) return "B+F";
-	if (RE.startsWith("W+F")) return "W+F";
+	for (let result of ["B+R", "W+R", "B+T", "W+T", "B+F", "W+F"]) {
+		if (RE.startsWith(result)) return result;
+	}
+
 	if (RE.startsWith("VOID")) return "Void";
-	if (RE.startsWith("JIGO")) return "Draw";
-	if (RE.startsWith("DRAW")) return "Draw";
+	if (RE.startsWith("JIGO") || RE.startsWith("DRAW")) return "Draw";
 	if (RE === "0") return "Draw";
 
 	if (RE.startsWith("B+") || RE.startsWith("W+")) {
-
-		let slice_index = 2;
-
-		while ("0123456789.".includes(RE[slice_index])) {
-			slice_index++;
-		}
-
-		return RE.slice(0, slice_index);
+		return RE.match(/^[BW]\+[0-9.]*/)[0];
 	}
 
 	return "?";
 }
 
+function compare_strings(a, b) {
+	if (a < b) return -1;
+	if (a > b) return 1;
+	return 0;
+}
+
 function sort_records(records) {
 	records.sort((a, b) => {
-		if (a.DT < b.DT) return -1;
-		if (a.DT > b.DT) return 1;
+		let dtc = compare_strings(a.DT, b.DT);
+		if (dtc !== 0) return dtc;
 		let evc = natural_compare(a.EV, b.EV);
 		if (evc !== 0) {
 			return evc;
@@ -132,8 +122,8 @@ function sort_records(records) {
 		if (rc !== 0) {
 			return rc;
 		}
-		if (a.relpath < b.relpath) return -1;
-		if (a.relpath > b.relpath) return 1;
+		let pc = compare_strings(a.relpath, b.relpath);
+		if (pc !== 0) return pc;
 		// if (a.PB < b.PB) return -1;					// Pointless now since relpath is sure to be different.
 		// if (a.PB > b.PB) return 1;
 		return 0;
@@ -143,12 +133,14 @@ function sort_records(records) {
 function deduplicate_records(records) {
 
 	records.sort((a, b) => {
-		if (a.dyer < b.dyer) return -1;
-		if (a.dyer > b.dyer) return 1;
-		if (a.DT < b.DT) return -1;
-		if (a.DT > b.DT) return 1;
-		if (a.movecount < b.movecount) return -1;		// Note that (like everything else) movecount is stored
-		if (a.movecount > b.movecount) return 1;		// as a string, but this is OK for deduplication purposes.
+		let dc = compare_strings(a.dyer, b.dyer);
+		if (dc !== 0) return dc;
+		let dtc = compare_strings(a.DT, b.DT);
+		if (dtc !== 0) return dtc;
+		// Note that (like everything else) movecount is stored as a string,
+		// but this is OK for deduplication purposes.
+		let mc = compare_strings(a.movecount, b.movecount);
+		if (mc !== 0) return mc;
 		return 0;
 	});
 

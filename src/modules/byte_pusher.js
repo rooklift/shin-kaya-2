@@ -21,9 +21,7 @@ let byte_pusher_prototype = {
 	push: function(c) {
 		if (this.length >= this.storage.length) {
 			let new_storage = new Uint8Array(this.storage.length * 2);
-			for (let n = 0; n < this.storage.length; n++) {
-				new_storage[n] = this.storage[n];
-			}
+			new_storage.set(this.storage);
 			this.storage = new_storage;
 		}
 		this.storage[this.length] = c;

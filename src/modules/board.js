@@ -2,8 +2,6 @@
 
 // Very modified from Ogatak. Doesn't contain stuff we don't need, like ko handling, etc.
 
-const fs = require("fs");
-const load_sgf = require("./load_sgf");
 const { xy_to_s, points_list } = require("./utils");
 
 function new_board(width, height, state = null) {
@@ -216,24 +214,9 @@ let board_prototype = {
 		}
 	},
 
-	add_empty: function(s) {
-		let plist = points_list(s);
-		for (let p of plist) {
-			this.set_at(p, "");
-		}
-	},
-
-	add_black: function(s) {
-		let plist = points_list(s);
-		for (let p of plist) {
-			this.set_at(p, "b");
-		}
-	},
-
-	add_white: function(s) {
-		let plist = points_list(s);
-		for (let p of plist) {
-			this.set_at(p, "w");
+	add_points: function(s, colour) {
+		for (let p of points_list(s)) {
+			this.set_at(p, colour);
 		}
 	},
 
@@ -256,15 +239,15 @@ function board_from_node(nd) {
 	for (let node of history) {
 
 		for (let s of node.all_values("AE")) {
-			board.add_empty(s);
+			board.add_points(s, "");
 		}
 
 		for (let s of node.all_values("AB")) {
-			board.add_black(s);
+			board.add_points(s, "b");
 		}
 
 		for (let s of node.all_values("AW")) {
-			board.add_white(s);
+			board.add_points(s, "w");
 		}
 
 		for (let s of node.all_values("B")) {

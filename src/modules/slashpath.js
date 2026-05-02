@@ -6,36 +6,27 @@ const { replace_all } = require("./utils");
 // I want to consistently return "/" separated paths regardless of platform.
 // This module has wrappers for several "path" methods to do this...
 
+function slashify(s) {
+	if (global.process && global.process.platform === "win32") {
+		return replace_all(s, "\\", "/");
+	}
+	return s;
+}
+
 exports.basename = path.basename;
 
 exports.dirname = (s) => {
-	s = path.dirname(s);
-	if (global.process && global.process.platform === "win32") {
-		s = replace_all(s, "\\", "/");
-	}
-	return s;
+	return slashify(path.dirname(s));
 };
 
 exports.join = (...args) => {
-	let s = path.join(...args);
-	if (global.process && global.process.platform === "win32") {
-		s = replace_all(s, "\\", "/");
-	}
-	return s;
+	return slashify(path.join(...args));
 };
 
 exports.relative = (a, b) => {
-	let s = path.relative(a, b);
-	if (global.process && global.process.platform === "win32") {
-		s = replace_all(s, "\\", "/");
-	}
-	return s;
+	return slashify(path.relative(a, b));
 };
 
 exports.resolve = (...args) => {
-	let s = path.resolve(...args);
-	if (global.process && global.process.platform === "win32") {
-		s = replace_all(s, "\\", "/");
-	}
-	return s;
+	return slashify(path.resolve(...args));
 };

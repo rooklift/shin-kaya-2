@@ -88,30 +88,14 @@ exports.update = async function() {
 	try {
 		let files = await list_all_files(archivepath, "");
 
-		let db_set = Object.create(null);
-		let file_set = Object.create(null);
-
-		for (let f of files) {
-			file_set[f] = true;
-		}
-
-		for (let o of database.records) {
-			db_set[o.relpath] = true;
-		}
+		let db_set = new Set(database.records.map(o => o.relpath));
+		let file_set = new Set(files);
 
 		// Make the diffs...
 
-		for (let key of Object.keys(db_set)) {
-			if (!file_set[key]) {
-				missing_files.push(key);
-			}
-		}
+		missing_files = [...db_set].filter(relpath => !file_set.has(relpath));
 		missing_files.sort();
-		for (let key of Object.keys(file_set)) {
-			if (!db_set[key]) {
-				new_files.push(key);
-			}
-		}
+		new_files = [...file_set].filter(relpath => !db_set.has(relpath));
 
 		await perform_deletions(database, missing_files, new_files.length);
 		let new_records = await perform_additions(database, archivepath, missing_files.length, new_files);

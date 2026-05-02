@@ -270,7 +270,7 @@ let hub_main_props = {
 			return;
 		}
 
-		let binding = {
+		let binding = Object.fromEntries(Object.entries({
 			P1:			document.getElementById("P1").value.trim(),
 			P2:			document.getElementById("P2").value.trim(),
 			relpath:	document.getElementById("relpath").value.trim(),
@@ -278,13 +278,7 @@ let hub_main_props = {
 			DT:			document.getElementById("DT").value.trim(),
 			EV:			document.getElementById("EV").value.trim(),
 			RO:			document.getElementById("RO").value.trim(),
-		};
-
-		for (let key of Object.keys(binding)) {
-			if (binding[key] === "") {
-				delete binding[key];
-			}
-		}
+		}).filter(([, value]) => value !== ""));
 
 		db.select(binding).then(records => this.handle_records(records));
 	},
@@ -353,12 +347,8 @@ let hub_main_props = {
 			this.preview_node.destroy_tree();
 			this.preview_node = new_root;
 
-			for (let depth = 0; depth < config.preview_depth; depth++) {
-				if (this.preview_node.children.length > 0) {
-					this.preview_node = this.preview_node.children[0];
-				} else {
-					break;
-				}
+			for (let depth = 0; depth < config.preview_depth && this.preview_node.children.length > 0; depth++) {
+				this.preview_node = this.preview_node.children[0];
 			}
 
 			set_thumbnail(this.preview_node);

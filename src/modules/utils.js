@@ -113,10 +113,5 @@ exports.safe_html = function(s) {
 };
 
 exports.ends_with_any = function(s, arr) {
-	for (let end of arr) {
-		if (s.endsWith(end)) {
-			return true;
-		}
-	}
-	return false;
+	return arr.some(end => s.endsWith(end));
 };
