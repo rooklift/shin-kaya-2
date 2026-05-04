@@ -43,6 +43,7 @@ module.exports = {
 					config[key] = old_value;
 					alert("Unable. Work is in progress.");
 				} else {
+					this.status_text("Loading...");
 					db.connect().then(() => this.display_row_count()).catch(err => {
 						console.log(err);
 						this.status_text(err.toString());
