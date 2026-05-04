@@ -121,7 +121,7 @@ exports.update = async function() {
 			update_import_status(missing_files.length, missing_files.length, new_files.length, new_files.length);
 			await database.save();
 		}
-		return {additions: new_files.length, deletions: missing_files.length, new_records: new_records}
+		return {additions: new_files.length, deletions: missing_files.length, new_records: new_records};
 	} finally {
 		work_in_progress = false;
 		abort_flag = false;
@@ -331,7 +331,7 @@ const db_prototype = {
 		return true;
 	},
 
-}
+};
 
 // ------------------------------------------------------------------------------------------------
 

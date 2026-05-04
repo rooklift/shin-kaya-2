@@ -20,8 +20,8 @@ function natural_compare(a, b) {		// Both should be strings.
 	let i = 0;
 	let j = 0;
 	while (true) {
-		let ca = a[i]
-		let cb = b[j]
+		let ca = a[i];
+		let cb = b[j];
 		if (ca === undefined && cb === undefined) {
 			return 0;
 		} else if (ca === undefined) {

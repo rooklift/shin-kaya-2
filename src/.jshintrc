@@ -8,8 +8,5 @@
 		"alert": true,
 		"config": true,
 		"hub": true
-	},
-	"unstable": {
-		"bigint": true
 	}
 }
