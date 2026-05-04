@@ -223,12 +223,6 @@ function menu_build() {
 					submenu: known_submenu,
 				},
 				{
-					label: "Count entries",
-					click: () => {
-						win.webContents.send("call", "display_row_count");
-					}
-				},
-				{
 					type: "separator",
 				},
 				{
@@ -242,6 +236,15 @@ function menu_build() {
 					label: "Stop update",
 					click: () => {
 						win.webContents.send("call", "stop_update");
+					}
+				},
+				{
+					type: "separator",
+				},
+				{
+					label: "Count entries",
+					click: () => {
+						win.webContents.send("call", "display_row_count");
 					}
 				},
 				{
