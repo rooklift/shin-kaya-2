@@ -2,6 +2,7 @@
 
 const { ipcRenderer } = require("electron");
 const db = require("./db_new");
+const slashpath = require("./slashpath");
 
 const multichecks = {
 	"preview_depth":		["View", "Preview depth (initial)"]
@@ -29,6 +30,14 @@ module.exports = {
 		switch (key) {
 
 			case "sgfdir":
+
+				if (!Array.isArray(config.known_dirs)) {
+					config.known_dirs = [];
+				}
+				let spr = slashpath.resolve(value);
+				if (!config.known_dirs.includes(spr)) {
+					config.known_dirs.push(spr);
+				}
 
 				if (db.wip()) {
 					config[key] = old_value;

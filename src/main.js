@@ -130,6 +130,25 @@ function startup() {
 
 function menu_build() {
 
+	let known_submenu = [];
+	if (Array.isArray(config.known_dirs) && config.known_dirs.length > 0) {
+		for (let d of config.known_dirs) {
+			known_submenu.push({
+				label: d,
+				click: () => {
+					win.webContents.send("set", {sgfdir: d});
+				}
+			});
+		}
+	} else {
+		known_submenu.push({
+			label: "None known yet"
+		});
+		known_submenu.push({
+			label: "(new entries require restart)"
+		});
+	}
+
 	const template = [
 		{
 			label: "App",
@@ -198,6 +217,10 @@ function menu_build() {
 							}
 						});
 					}
+				},
+				{
+					label: "Known archives",
+					submenu: known_submenu,
 				},
 				{
 					label: "Count entries",
