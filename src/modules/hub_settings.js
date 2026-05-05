@@ -40,14 +40,10 @@ module.exports = {
 				}
 
 				if (db.wip()) {
-					config[key] = old_value;
 					alert("Unable. Work is in progress.");
+					config[key] = old_value;
 				} else {
-					this.status_text("Loading...");
-					db.connect().then(() => this.display_row_count()).catch(err => {
-						console.log(err);
-						this.status_text(err.toString());
-					});
+					this.connect_db();
 				}
 				break;
 		}

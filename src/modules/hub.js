@@ -79,7 +79,11 @@ let hub_main_props = {
 			alert("Unable. Work is in progress.");
 			return;
 		}
-		db.connect().then(() => this.display_row_count()).catch(err => {
+		this.status_text("Loading...");
+		db.connect().then(() => {
+			this.clear_gamesbox();
+			this.display_row_count();
+		}).catch(err => {
 			console.log(err);
 			this.status_text(err.toString());
 		});
@@ -161,6 +165,12 @@ let hub_main_props = {
 		this.status_html(count_string);
 		this.mount_gamesbox();
 
+		this.set_selected_game(null);
+	},
+
+	clear_gamesbox: function() {
+		this.displayed_records = [];
+		this.mount_gamesbox();
 		this.set_selected_game(null);
 	},
 
