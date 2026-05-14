@@ -11,6 +11,7 @@ const load_sgf = require("./load_sgf");
 const slashpath = require("./slashpath");
 const { new_board } = require("./board");
 const { sort_records, deduplicate_records, span_string } = require("./records");
+const { all_dates } = require("./utils");
 
 const GAME_ROW_OVERSCAN = 16;
 const DEFAULT_GAME_ROW_HEIGHT = 20;
@@ -289,6 +290,11 @@ let hub_main_props = {
 			EV:			document.getElementById("EV").value.trim(),
 			RO:			document.getElementById("RO").value.trim(),
 		};
+
+		if (all_dates(binding.DT).length > 2) {
+			alert("Enter no more than 2 dates.");
+			return;
+		}
 
 		for (let key of Object.keys(binding)) {
 			if (binding[key] === "") {

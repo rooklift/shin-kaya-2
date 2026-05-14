@@ -120,3 +120,55 @@ exports.ends_with_any = function(s, arr) {
 	}
 	return false;
 };
+
+exports.string_occurrences = function(s, c) {
+	let ret = 0;
+	for (let ch of s) {
+		if (ch === c) {
+			ret++;
+		}
+	}
+	return ret;
+};
+
+// Date handling...
+// Dates are always format YYYY or YYYY-MM or YYYY-MM-DD
+// Note that records.js enforces this too
+
+exports.all_dates = function(s) {
+
+	if (typeof(s) !== "string") {
+		return [];
+	}
+
+	function pad_date(date_str) {
+		let parts = date_str.split("-");
+		let [year, month, day] = parts;
+		let result = year.padStart(4, "0");
+		if (month !== undefined) result += `-${month.padStart(2, "0")}`;
+		if (day !== undefined) result += `-${day.padStart(2, "0")}`;
+		return result;
+	}
+
+	let ret = s.match(/(?<!\d)\d{1,4}(?:-\d{1,2}(?:-\d{1,2})?)?(?!\d)/g) ?? [];		// Opus 4.7.
+	ret = ret.map(s => pad_date(s))
+	return ret;
+};
+
+exports.expand_date_low = function(dt) {
+	if (exports.string_occurrences(dt, "-") === 0) return `${dt}-01-01`;
+	if (exports.string_occurrences(dt, "-") === 1) return `${dt}-01`;
+	return dt;
+};
+
+exports.expand_date_high = function(dt) {
+	if (exports.string_occurrences(dt, "-") === 0) return `${dt}-12-31`;
+	if (exports.string_occurrences(dt, "-") === 1) return `${dt}-31`;		// For our purposes, it matters not that this gives Feb 31st etc etc.
+	return dt;
+};
+
+exports.date_in_range = function(dt_1, dt_2, dt_to_check) {
+	let check_low = exports.expand_date_low(dt_to_check);
+	let check_high = exports.expand_date_high(dt_to_check);
+	return check_low <= dt_2 && check_high >= dt_1;
+};

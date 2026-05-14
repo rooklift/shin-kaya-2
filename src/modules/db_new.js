@@ -5,6 +5,7 @@ const path = require("path");
 const slashpath = require("./slashpath");
 const { list_all_files } = require("./walk_promises");
 const { create_record_from_path } = require("./records");
+const { all_dates, expand_date_low, expand_date_high, date_in_range } = require("./utils");
 
 const fields = ["relpath", "PB", "PW", "BR", "WR", "SZ", "HA", "RE", "DT", "EV", "RO", "dyer", "movecount"];
 const DELETION_BATCH_SIZE = 43;
@@ -290,10 +291,22 @@ const db_prototype = {
 
 	select: async function(filter) {
 
+		let date_range = all_dates(filter.DT).slice(0, 2);		// Expected to do padding so all years are 4 digits long.
+
+		if (date_range.length === 2) {
+			date_range[0] = expand_date_low(date_range[0]);		// e.g. 2000    --> 2000-01-01
+			date_range[1] = expand_date_high(date_range[1]);	// e.g. 2000-03 --> 2000-03-31
+		} else if (date_range.length === 1) {
+			filter.DT = date_range[0];							// We do this because all_dates canonicalises semi-good strings like 1999-2 into 1999-02.
+			date_range = null;
+		} else {
+			date_range = null;
+		}
+
 		let results = [];
 
 		for (let rec of this.records) {
-			if (record_matches(rec, filter)) {
+			if (record_matches(rec, filter, date_range)) {
 				results.push(rec);
 			}
 		}
@@ -335,7 +348,10 @@ const db_prototype = {
 
 // ------------------------------------------------------------------------------------------------
 
-function record_matches(rec, filter) {
+function record_matches(rec, filter, date_range) {
+
+	// Special handling of P1 and P2...
+
 	let p1 = filter.P1;
 	let p2 = filter.P2;
 
@@ -361,8 +377,21 @@ function record_matches(rec, filter) {
 		}
 	}
 
+	// Special handling of date range...
+
+	if (date_range) {
+		if (!rec.DT) {
+			return false;
+		}
+		if (!date_in_range(date_range[0], date_range[1], rec.DT)) {
+			return false;
+		}
+	}
+
+	// Everything else...
+
 	for (let key of Object.keys(filter)) {
-		if (key === "P1" || key === "P2") {
+		if (key === "P1" || key === "P2" || (key === "DT" && date_range)) {
 			continue;
 		}
 		let val = filter[key].toLowerCase();

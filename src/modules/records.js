@@ -86,7 +86,7 @@ function canonicaldate(DT) {
 	if (m && m.length > 0) return m[0];
 
 	m = DT.match(/\d\d\d/g);
-	if (m && m.length > 0) return "0" + m[0];
+	if (m && m.length > 0) return "0" + m[0];							// Always stored years as 4 digits
 
 	return "";
 }
